@@ -67,10 +67,10 @@ html, body { overflow-x: hidden; max-width: 100%; }
     overscroll-behavior: contain;
     z-index: 1029;
   }
-  /* JS moves #hm-nav-links to <body> to escape the navbar's backdrop-filter
-     containing block. The open state is toggled via .is-open on the element
-     itself, not via a descendant selector on the navbar. */
-  .hm-nav-links.is-open { transform: translateX(0); }
+  /* backdrop-filter is now on .hm-navbar::before (not the element itself),
+     so the navbar no longer creates a containing block for fixed descendants.
+     The drawer stays inside the navbar and this descendant selector works. */
+  .hm-navbar.is-open .hm-nav-links { transform: translateX(0); }
 
   .hm-nav-links li { list-style: none; }
   /* Nav link items: 48px touch targets, comfortable padding */

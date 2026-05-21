@@ -8,12 +8,26 @@
   top: 0;
   z-index: 1030;
   background: rgba(255, 255, 255, 0.78);
-  backdrop-filter: saturate(180%) blur(14px);
-  -webkit-backdrop-filter: saturate(180%) blur(14px);
+  /* backdrop-filter is on ::before, NOT here.
+     When backdrop-filter is on the element itself it creates a new containing
+     block for position:fixed descendants (Chrome/Safari bug), which collapses
+     the mobile drawer to ~0px height. Moving it to a pseudo-element preserves
+     the glass effect without affecting fixed-child positioning. */
   border-bottom: 1px solid var(--hm-border);
   height: var(--hm-navbar-h);
   display: flex;
   align-items: center;
+}
+/* Frosted-glass effect via pseudo-element so the navbar itself does NOT
+   create a containing block for position:fixed children. */
+.hm-navbar::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  backdrop-filter: saturate(180%) blur(14px);
+  -webkit-backdrop-filter: saturate(180%) blur(14px);
+  pointer-events: none;
 }
 .hm-navbar__inner {
   /* 3-column grid: [brand 1fr] [nav-links auto, centered] [nav-right 1fr] */

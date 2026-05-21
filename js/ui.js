@@ -52,22 +52,12 @@ export function wireNavbarToggle() {
   if (nav.dataset.hmNavWired === '1') return;
   nav.dataset.hmNavWired = '1';
 
-  // ── Escape from backdrop-filter containing-block bug ─────────────────────
-  //
-  // The navbar has `backdrop-filter: blur()`. In Chrome/Safari this creates a
-  // NEW containing block for position:fixed descendants. That means the drawer
-  // (#hm-nav-links) — which is fixed-positioned — is sized relative to the
-  // 64-72px navbar instead of the viewport, giving it ~0px effective height.
-  //
-  // Fix: move BOTH the drawer and the backdrop to <body> before attaching
-  // any listeners. Elements on <body> have no transform/filter ancestor, so
-  // position:fixed is always viewport-relative.
-  const navLinks = document.getElementById('hm-nav-links');
-  if (navLinks && navLinks.parentElement !== document.body) {
-    document.body.appendChild(navLinks);
-  }
-
-  // ── Backdrop (also on <body> for the same reason) ─────────────────────────
+  // ── Backdrop ──────────────────────────────────────────────────────────────
+  // Created on <body> so its own position:fixed is always viewport-relative.
+  // The navbar's backdrop-filter is now on a ::before pseudo-element (see
+  // components.css) so the navbar itself no longer creates a containing block
+  // for fixed descendants — #hm-nav-links stays inside the navbar and sizes
+  // correctly against the viewport.
   let backdrop = document.getElementById('hm-drawer-backdrop');
   if (!backdrop) {
     backdrop = document.createElement('div');
@@ -81,7 +71,6 @@ export function wireNavbarToggle() {
   const closeMenu = () => {
     if (!nav.classList.contains('is-open')) return;
     nav.classList.remove('is-open');
-    navLinks?.classList.remove('is-open');
     backdrop.classList.remove('is-open');
     toggle.setAttribute('aria-expanded', 'false');
     toggle.setAttribute('aria-label', 'Open menu');
@@ -90,7 +79,6 @@ export function wireNavbarToggle() {
 
   const openMenu = () => {
     nav.classList.add('is-open');
-    navLinks?.classList.add('is-open');
     backdrop.classList.add('is-open');
     toggle.setAttribute('aria-expanded', 'true');
     toggle.setAttribute('aria-label', 'Close menu');
@@ -109,26 +97,22 @@ export function wireNavbarToggle() {
   if (closeBtn) closeBtn.addEventListener('click', closeMenu);
 
   // ── Clicking a nav link / drawer action auto-closes on mobile ─────────────
-  // navLinks is now on body so we listen on it directly (no longer inside nav).
-  const DRAWER_SELECTORS = '.hm-nav-links a, .hm-nav-links__action, .hm-nav-actions a, .hm-nav-actions button';
-  [nav, navLinks].forEach((root) => {
-    if (!root) return;
-    root.addEventListener('click', (e) => {
-      const link = e.target.closest(DRAWER_SELECTORS);
-      if (!link) return;
-      if (window.matchMedia(MOBILE_BREAKPOINT).matches) closeMenu();
-    });
+  nav.addEventListener('click', (e) => {
+    const link = e.target.closest(
+      '.hm-nav-links a, .hm-nav-links__action, .hm-nav-actions a, .hm-nav-actions button'
+    );
+    if (!link) return;
+    if (window.matchMedia(MOBILE_BREAKPOINT).matches) closeMenu();
   });
 
   // ── Backdrop click closes the drawer ─────────────────────────────────────
   backdrop.addEventListener('click', closeMenu);
 
-  // ── Click outside navbar + drawer closes the menu ─────────────────────────
+  // ── Click outside the navbar closes the menu ──────────────────────────────
   document.addEventListener('click', (e) => {
     if (!nav.classList.contains('is-open')) return;
-    if (nav.contains(e.target))      return; // inside navbar
-    if (navLinks?.contains(e.target)) return; // inside drawer (now on body)
-    if (e.target === backdrop)        return; // backdrop has its own listener
+    if (nav.contains(e.target))  return;
+    if (e.target === backdrop)   return;
     closeMenu();
   });
 
