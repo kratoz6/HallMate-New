@@ -44,20 +44,15 @@
       </li>
 
       <!--
-        ── Logged-IN secondary actions (drawer-only on mobile).
-           hm-nav-links__drawer-item keeps these hidden on desktop
-           via CSS; JS shows them when logged in by removing hidden attr.
+        ── Utility links (drawer-only on mobile, always visible regardless of auth).
+           hm-nav-links__drawer-item keeps these hidden on desktop via CSS.
       -->
-      <li class="hm-nav-links__sep hm-nav-links__drawer-item" data-auth="logged-in" hidden></li>
-      <li class="hm-nav-links__drawer-item" data-auth="logged-in" hidden>
-        <a href="/profile.html" data-route="profile" class="hm-nav-links__action">Profile</a>
+      <li class="hm-nav-links__sep hm-nav-links__drawer-item"></li>
+      <li class="hm-nav-links__drawer-item">
+        <a href="mailto:support@hallmate.in" class="hm-nav-links__action">Contact us</a>
       </li>
-      <li class="hm-nav-links__drawer-item" data-auth="logged-in" hidden>
-        <button
-          type="button"
-          class="hm-nav-links__action hm-nav-links__action--danger"
-          data-action="logout"
-        >Log out</button>
+      <li class="hm-nav-links__drawer-item">
+        <a href="/index.html#support" class="hm-nav-links__action">Support</a>
       </li>
 
     </ul>
