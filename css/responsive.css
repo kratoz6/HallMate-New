@@ -1,39 +1,69 @@
 /* HallMate — Mobile-first responsive overrides.
-   Breakpoints:
-     - default (mobile)
-     - sm: >= 576px
-     - md: >= 768px
-     - lg: >= 992px
-     - xl: >= 1200px
-   Loaded LAST so overrides win over component styles. */
+   Breakpoints (matching Bootstrap 5):
+     ≤ 479.98px  — very small phones (360–479)
+     ≤ 767.98px  — phones / portrait tablets
+     ≤ 991.98px  — tablets / large phones / mobile navbar breakpoint
+     ≥ 992px     — desktop
+     ≥ 1200px    — wide desktop
+   Loaded LAST so every rule wins over earlier layers. */
 
 /* ============================================================
-   MOBILE BASE (<= 575.98px)  — adjustments off the default desktop layout
+   GLOBAL OVERFLOW GUARD
+============================================================ */
+html, body { overflow-x: hidden; max-width: 100%; }
+
+/* ============================================================
+   ≤ 991.98px — MOBILE NAVBAR: flex layout + drawer
+   On desktop the navbar uses a 3-column CSS grid (set in components.css).
+   On mobile we switch to flex so the fixed-position nav-links drawer
+   doesn't occupy a grid track.
 ============================================================ */
 @media (max-width: 991.98px) {
-  /* Navbar collapses to icon toggle + drawer */
+
+  /* Switch from 3-col grid to flex for the mobile row layout. */
+  .hm-navbar__inner {
+    display: flex;
+    align-items: center;
+    gap: var(--hm-space-2);
+  }
+
+  /* nav-links is position:fixed on mobile — it leaves the flex flow.
+     nav-right takes margin-left:auto so it is always flush right. */
+  .hm-nav-right { margin-left: auto; }
+
+  /* ── Hamburger toggle ──────────────────────────────────────── */
   .hm-nav-toggle { display: inline-flex; }
-  .hm-nav-links,
-  .hm-nav-actions {
+
+  /* ── Mobile auth CTAs: always visible when logged out ─────── */
+  .hm-nav-cta { display: flex; }
+
+  /* ── Desktop auth CTAs: hide on mobile ────────────────────── */
+  .hm-nav-actions { display: none !important; }
+
+  /* ── Nav-links become a full-height slide-in drawer ─────────
+     Only the nav-links drawer slides — the avatar dropdown and
+     auth CTAs remain pinned in the navbar row at all times.    */
+  .hm-nav-links {
     position: fixed;
     inset: var(--hm-navbar-h) 0 0 0;
     background: var(--hm-surface);
     flex-direction: column;
     align-items: stretch;
+    justify-content: flex-start;
     gap: 0;
     padding: var(--hm-space-4);
+    padding-bottom: max(var(--hm-space-6), env(safe-area-inset-bottom));
     border-top: 1px solid var(--hm-border);
     transform: translateX(100%);
     transition: transform var(--hm-duration-base) var(--hm-ease);
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
     z-index: 1029;
   }
-  .hm-navbar.is-open .hm-nav-links,
-  .hm-navbar.is-open .hm-nav-actions {
-    transform: translateX(0);
-  }
-  .hm-nav-actions { top: auto; bottom: 0; transform: translateX(100%); }
-  .hm-navbar.is-open .hm-nav-actions { transform: translateX(0); padding-top: var(--hm-space-3); border-top: 1px solid var(--hm-border); }
+  .hm-navbar.is-open .hm-nav-links { transform: translateX(0); }
+
+  .hm-nav-links li { list-style: none; }
   .hm-nav-links a {
     display: block;
     padding: 14px 12px;
@@ -41,60 +71,130 @@
     font-size: var(--hm-text-base);
   }
 
-  /* Dashboard layouts go single column */
+  /* ── Page layouts ──────────────────────────────────────────── */
   .hm-dashboard { grid-template-columns: 1fr; }
-  .hm-sidebar { position: static; top: auto; }
+  .hm-sidebar   { position: static; top: auto; }
 
-  /* Filter fields go 2-up on mobile so they don't eat too much vertical space. */
   .hm-sidebar__fields {
     display: grid !important;
     grid-template-columns: 1fr 1fr;
     gap: var(--hm-space-3);
   }
 
-  /* Profile goes single column */
   .hm-profile { grid-template-columns: 1fr; }
 
-  /* Footer columns stack */
   .hm-footer__grid { grid-template-columns: 1fr 1fr; }
 
-  /* Auth screen drops the aside */
   .hm-auth { grid-template-columns: 1fr; }
   .hm-auth__aside { display: none; }
 }
 
+/* ============================================================
+   ≤ 767.98px — PHONES: typography scale + single-column layouts
+============================================================ */
 @media (max-width: 767.98px) {
+
   :root {
+    --hm-text-4xl: 32px;   /* hero h1 (was 48px inline) */
     --hm-text-3xl: 30px;
     --hm-text-2xl: 24px;
     --hm-navbar-h: 64px;
   }
 
-  .hm-page { padding-top: var(--hm-space-5); padding-bottom: var(--hm-space-6); }
+  /* Touch targets: enforce 44px min on sm-sized buttons */
+  .hm-btn--sm { min-height: 44px; padding: 0 16px; }
+
+  .hm-page    { padding-top: var(--hm-space-5); padding-bottom: var(--hm-space-6); }
   .hm-section { padding: var(--hm-space-6) 0; }
 
-  .hm-footer__grid { grid-template-columns: 1fr; gap: var(--hm-space-5); }
-  .hm-footer__legal { flex-direction: column; align-items: flex-start; }
-
+  /* Feed header stacks + buttons wrap */
   .hm-feed-header { flex-direction: column; align-items: flex-start; }
+  .hm-feed-header > .d-flex { flex-wrap: wrap; }
 
+  /* Dashboard grid: single column */
   .hm-grid-cards { grid-template-columns: 1fr; }
+  /* Remove fixed min-height that creates gaps at 1-col width */
+  .hm-mate { min-height: unset; }
 
+  /* Profile kv: stack label above value */
   .hm-kv { grid-template-columns: 1fr; row-gap: 4px; }
   .hm-kv dt { margin-top: 8px; }
 
+  /* Auth card */
   .hm-auth__card { padding: var(--hm-space-5); border-radius: var(--hm-radius-lg); }
+
+  /* OTP cells: 6 × 40px + 5 × 8px = 280px — fits 296px card interior on 360px */
   .hm-otp__cell { width: 40px; height: 52px; font-size: var(--hm-text-lg); }
 
+  /* Toasts */
   .hm-toast-container { top: 16px; right: 16px; left: 16px; }
   .hm-toast { max-width: 100%; }
+
+  /* Footer */
+  .hm-footer__grid  { grid-template-columns: 1fr; gap: var(--hm-space-5); }
+  .hm-footer__legal { flex-direction: column; align-items: flex-start; }
+
+  /* Section card header: let edit button wrap */
+  .hm-section-card__header { flex-wrap: wrap; gap: var(--hm-space-2); }
+
+  /* Connection-request item actions */
+  .hm-request-item__actions { flex-wrap: wrap; }
+
+  /* Modal: a touch less padding, slightly taller */
+  .hm-modal-overlay { padding: var(--hm-space-3); }
+  .hm-modal         { max-height: 94vh; }
+  /* Shrink label column so values have more room */
+  .hm-modal__row    { grid-template-columns: 90px 1fr; }
+  /* Long phone numbers / exam-centre names must wrap */
+  .hm-modal__phone  { word-break: break-all; }
 }
 
+/* ============================================================
+   ≤ 479.98px — VERY SMALL PHONES (360–479px)
+   Hide brand text to reclaim ~90px for the always-visible auth CTAs.
+============================================================ */
+@media (max-width: 479.98px) {
+
+  /* Show only the "H" logomark; text reappears at ≥480px */
+  .hm-brand__text { display: none; }
+
+  /* Tighten OTP grid */
+  .hm-otp        { gap: 5px; }
+  .hm-otp__cell  { width: 38px; height: 50px; font-size: var(--hm-text-base); }
+
+  /* Filter sidebar: 2-col is too narrow at 360px */
+  .hm-sidebar__fields { grid-template-columns: 1fr !important; }
+
+  /* Profile phone number can be long */
+  .hm-profile-card__phone { word-break: break-all; }
+
+  /* Feed-header action buttons: full-width stack */
+  .hm-feed-header > .d-flex { flex-direction: column; align-items: flex-start; width: 100%; }
+  .hm-feed-header > .d-flex .hm-btn { width: 100%; justify-content: center; }
+}
+
+/* ============================================================
+   ≥ 992px — DESKTOP: hide mobile-only elements
+============================================================ */
 @media (min-width: 992px) {
+
+  /* hm-nav-cta is mobile-only */
+  .hm-nav-cta { display: none !important; }
+
+  /* Desktop page top-padding */
   .hm-page { padding-top: var(--hm-space-8); }
 }
 
-/* Reduced motion — honor user preference. */
+/* ============================================================
+   ≥ 1200px — WIDE DESKTOP: cap mate-card grid column width
+============================================================ */
+@media (min-width: 1200px) {
+  .hm-grid-cards { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+}
+
+/* ============================================================
+   REDUCED MOTION
+============================================================ */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.001ms !important;
@@ -104,7 +204,9 @@
   }
 }
 
-/* Print — quick hygiene; not a print product but avoids ugly outputs. */
+/* ============================================================
+   PRINT
+============================================================ */
 @media print {
   .hm-navbar, .hm-footer, .hm-toast-container, .hm-loader-overlay { display: none !important; }
   body { background: #fff; }

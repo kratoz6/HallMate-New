@@ -2,7 +2,7 @@
 // Every page loads this single file. It mounts shared chrome, wires up nav state,
 // and dispatches to a page-specific initializer based on the current route.
 
-import { mountChrome, highlightActiveNav, $, on } from './ui.js';
+import { mountChrome, highlightActiveNav, $, $$, on } from './ui.js';
 import { whenReady, onAuthChange, logout, requireAuth, redirectIfAuthed } from './auth.js';
 import { currentRoute } from './utils.js';
 import { ROUTES } from './config.js';
@@ -14,6 +14,7 @@ const ROUTE_INITIALIZERS = {
   login: initLogin,
   onboarding: initOnboarding,
   dashboard: initDashboard,
+  connections: initConnections,
   profile: initProfile,
 };
 
@@ -48,10 +49,26 @@ function wireGlobalNav() {
 }
 
 function renderNavAuthState(user) {
-  const loggedOut = $('[data-auth="logged-out"]');
-  const loggedIn = $('[data-auth="logged-in"]');
-  if (loggedOut) loggedOut.hidden = !!user;
-  if (loggedIn) loggedIn.hidden = !user;
+  // Toggle ALL data-auth elements — the navbar has auth items in multiple
+  // locations (hm-nav-cta, hm-nav-actions, hm-nav-profile, nav-link <li>s).
+  $$('[data-auth="logged-out"]').forEach((el) => { el.hidden = !!user; });
+  $$('[data-auth="logged-in"]').forEach((el) => { el.hidden = !user; });
+
+  // Update navbar avatar initials from sessionStorage cache set by profile.js.
+  if (user) updateNavbarAvatar();
+}
+
+// Reads cached initials written by profile.js (STORAGE_KEYS.profile) so the
+// avatar shows real initials on every page — no extra Supabase call needed.
+function updateNavbarAvatar() {
+  const el = document.getElementById('hm-navbar-avatar');
+  if (!el) return;
+  try {
+    const cached = JSON.parse(sessionStorage.getItem(STORAGE_KEYS.profile) || 'null');
+    if (cached?.initials) { el.textContent = cached.initials; return; }
+  } catch { /* ignore malformed cache */ }
+  // Fallback: "Me" renders until the user visits their profile page.
+  // el.textContent is already "Me" from the navbar HTML default.
 }
 
 // --- Page initializers (shells) ----------------------------------------------
@@ -78,6 +95,12 @@ async function initDashboard() {
   const user = await requireAuth();
   if (!user) return;
   // Phase 2: load centre mates, filters, connection requests.
+}
+
+async function initConnections() {
+  const user = await requireAuth();
+  if (!user) return;
+  // Phase 2: load accepted connections + pending requests.
 }
 
 async function initProfile() {

@@ -16,11 +16,12 @@
   align-items: center;
 }
 .hm-navbar__inner {
-  display: flex;
+  /* 3-column grid: [brand 1fr] [nav-links auto, centered] [nav-right 1fr] */
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  justify-content: space-between;
   width: 100%;
-  gap: var(--hm-space-5);
+  gap: var(--hm-space-4);
 }
 .hm-brand {
   display: inline-flex;
@@ -42,7 +43,7 @@
   box-shadow: var(--hm-shadow-sm);
 }
 .hm-nav-links {
-  display: flex; align-items: center; gap: var(--hm-space-2);
+  display: flex; align-items: center; justify-content: center; gap: var(--hm-space-2);
   list-style: none; padding: 0; margin: 0;
 }
 .hm-nav-links a {
@@ -55,11 +56,82 @@
 .hm-nav-links a:hover { color: var(--hm-text); background: var(--hm-surface-2); }
 .hm-nav-links a.active { color: var(--hm-primary); background: var(--hm-primary-100); }
 
+/* Right-side group: wraps cta / nav-actions / profile / toggle on a single flex row. */
+.hm-nav-right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--hm-space-2);
+}
+
 .hm-nav-actions { display: flex; align-items: center; gap: var(--hm-space-3); }
+
+/* ── Profile avatar + dropdown ───────────────────────────────────────────── */
+.hm-nav-profile { position: relative; }
+
+.hm-nav-profile__btn {
+  display: flex; align-items: center; gap: 4px;
+  background: none; border: none; cursor: pointer;
+  padding: 4px 6px;
+  border-radius: var(--hm-radius-md);
+  transition: background var(--hm-duration-fast) var(--hm-ease);
+}
+.hm-nav-profile__btn:hover { background: var(--hm-surface-2); }
+
+.hm-nav-profile__chevron {
+  font-size: 10px; color: var(--hm-text-subtle); line-height: 1;
+  transition: transform var(--hm-duration-fast) var(--hm-ease);
+}
+.hm-nav-profile__btn[aria-expanded="true"] .hm-nav-profile__chevron {
+  transform: rotate(180deg);
+}
+
+.hm-nav-profile__dropdown {
+  position: absolute; top: calc(100% + 6px); right: 0;
+  min-width: 168px;
+  background: var(--hm-surface);
+  border: 1px solid var(--hm-border);
+  border-radius: var(--hm-radius-md);
+  box-shadow: var(--hm-shadow-md);
+  z-index: 1040;
+  list-style: none; padding: var(--hm-space-1) 0; margin: 0;
+  /* Animated with CSS class — JS toggles .is-open */
+  visibility: hidden;
+  opacity: 0;
+  transform: translateY(-6px);
+  transition: opacity var(--hm-duration-fast) var(--hm-ease),
+              transform var(--hm-duration-fast) var(--hm-ease),
+              visibility 0s var(--hm-duration-fast);
+  pointer-events: none;
+}
+.hm-nav-profile__dropdown.is-open {
+  visibility: visible; opacity: 1; transform: translateY(0);
+  transition: opacity var(--hm-duration-fast) var(--hm-ease),
+              transform var(--hm-duration-fast) var(--hm-ease),
+              visibility 0s;
+  pointer-events: auto;
+}
+
+.hm-nav-profile__item {
+  display: flex; align-items: center;
+  width: 100%; text-align: left;
+  padding: 10px 16px;
+  font-size: var(--hm-text-sm); font-weight: 500;
+  color: var(--hm-text-muted);
+  background: none; border: none; cursor: pointer;
+  font-family: var(--hm-font-body);
+  transition: background var(--hm-duration-fast) var(--hm-ease),
+              color var(--hm-duration-fast) var(--hm-ease);
+  text-decoration: none;
+}
+.hm-nav-profile__item:hover { background: var(--hm-surface-2); color: var(--hm-text); }
+.hm-nav-profile__item--danger { color: var(--hm-danger); }
+.hm-nav-profile__item--danger:hover { background: #FEE2E2; color: var(--hm-danger); }
 
 .hm-nav-toggle {
   display: none;
   width: 40px; height: 40px;
+  flex-shrink: 0;
   border: 1px solid var(--hm-border);
   background: var(--hm-surface);
   border-radius: var(--hm-radius-sm);
@@ -72,6 +144,34 @@
 }
 .hm-nav-toggle span::before { top: -6px; }
 .hm-nav-toggle span::after  { top:  6px; }
+
+/* hm-nav-cta — mobile-only auth CTA container. Hidden on desktop by default;
+   responsive.css shows it at ≤991px. */
+.hm-nav-cta { display: none; align-items: center; gap: var(--hm-space-2); flex-shrink: 0; }
+
+/* ── Mobile drawer action items ──────────────────────────────────────────── */
+/* Separator between nav links and logged-in actions inside the drawer. */
+.hm-nav-links__sep {
+  height: 1px;
+  background: var(--hm-border);
+  margin: var(--hm-space-2) 0;
+  list-style: none;
+}
+/* Full-width button/link inside the drawer that looks like a nav link. */
+.hm-nav-links__action {
+  display: block; width: 100%; text-align: left;
+  padding: 14px 12px;
+  border-radius: var(--hm-radius-md);
+  font-size: var(--hm-text-base); font-weight: 500;
+  color: var(--hm-text-muted);
+  background: none; border: none; cursor: pointer;
+  font-family: var(--hm-font-body);
+  transition: background var(--hm-duration-fast) var(--hm-ease),
+              color var(--hm-duration-fast) var(--hm-ease);
+}
+.hm-nav-links__action:hover { color: var(--hm-text); background: var(--hm-surface-2); }
+.hm-nav-links__action--danger { color: var(--hm-danger); }
+.hm-nav-links__action--danger:hover { color: var(--hm-danger); background: #FEE2E2; }
 
 /* ============================================================
    BUTTONS
@@ -115,6 +215,8 @@
 
 .hm-btn--lg { height: 52px; padding: 0 28px; font-size: var(--hm-text-base); border-radius: var(--hm-radius-lg); }
 .hm-btn--sm { height: 36px; padding: 0 14px; font-size: var(--hm-text-xs); }
+/* xs — compact variant used for always-visible mobile navbar CTAs */
+.hm-btn--xs { height: 32px; padding: 0 10px; font-size: 11px; border-radius: var(--hm-radius-sm); white-space: nowrap; }
 .hm-btn--block { width: 100%; }
 
 /* ============================================================
@@ -268,6 +370,7 @@
   overflow: hidden;
 }
 .hm-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.hm-avatar--sm { width: 32px; height: 32px; font-size: var(--hm-text-xs); font-weight: 700; }
 .hm-avatar--lg { width: 96px; height: 96px; font-size: var(--hm-text-2xl); }
 
 /* ============================================================
