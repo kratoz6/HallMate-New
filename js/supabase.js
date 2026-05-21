@@ -40,6 +40,21 @@ export function getUserByPhone(phone) {
   );
 }
 
+// Fetch the full profile row for the current user (looked up by phone).
+// Returns { data: <row|null>, error }. Selects only the columns guaranteed by
+// the current onboarding schema; richer fields (home_city, college, etc.) are
+// merged in by the profile page from row[field] if the column exists on the
+// server — this keeps the helper resilient to forward-compat columns being
+// missing without throwing PGRST errors.
+export function getProfileByPhone(phone) {
+  return query(
+    from('users')
+      .select('id, phone, full_name, gender, state, district, exam_center, profile_completed, created_at')
+      .eq('phone', phone)
+      .maybeSingle()
+  );
+}
+
 // Insert or update a user record (conflict key: phone).
 export function upsertUser(payload) {
   return query(

@@ -1,39 +1,109 @@
 <nav class="hm-navbar" id="hm-navbar">
   <div class="hm-container hm-navbar__inner">
+
+    <!-- ── LEFT: Brand ────────────────────────────────────────────────────── -->
     <a href="/index.html" class="hm-brand" aria-label="HallMate home">
       <span class="hm-brand__mark">H</span>
-      <span>HallMate</span>
+      <span class="hm-brand__text">HallMate</span>
     </a>
 
-    <button class="hm-nav-toggle" type="button" id="hm-nav-toggle" aria-controls="hm-navbar" aria-expanded="false" aria-label="Open menu">
-      <span></span>
-    </button>
+    <!--
+      ── CENTER: Nav links ──────────────────────────────────────────────────
+      Desktop  → inline (grid col 2, centered).
+      Mobile   → position:fixed drawer (slides in from right on toggle).
+      Auth state switches which set of <li> items is visible via JS.
+    -->
+    <ul class="hm-nav-links" id="hm-nav-links" role="list">
 
-    <ul class="hm-nav-links" id="hm-nav-links">
-      <li><a href="/index.html"      data-route="index">Home</a></li>
-      <li><a href="/dashboard.html"  data-route="dashboard">Find Mates <span class="hm-nav-badge" id="hm-requests-badge" hidden></span></a></li>
-      <li><a href="/profile.html"    data-route="profile">Profile</a></li>
+      <!-- Logged-OUT links (visible before sign-in) -->
+      <li data-auth="logged-out">
+        <a href="/dashboard.html" data-route="dashboard">Find Mates</a>
+      </li>
+      <li data-auth="logged-out">
+        <a href="/index.html#how-it-works">How it works</a>
+      </li>
+
+      <!-- Logged-IN links (visible after sign-in) -->
+      <li data-auth="logged-in" hidden>
+        <a href="/dashboard.html" data-route="dashboard">Find Mates</a>
+      </li>
+      <li data-auth="logged-in" hidden>
+        <a href="/connections.html" data-route="connections">Connections</a>
+      </li>
+
     </ul>
 
-    <div class="hm-nav-actions">
-      <a href="/login.html" class="hm-btn hm-btn--ghost hm-btn--sm" data-auth="logged-out">Sign in</a>
-      <a href="/login.html" class="hm-btn hm-btn--primary hm-btn--sm" data-auth="logged-out">Get started</a>
+    <!--
+      ── RIGHT: hm-nav-right ────────────────────────────────────────────────
+      Groups all right-side controls. Pushed to far right on both desktop
+      (grid col 3, justify-content:flex-end) and mobile (margin-left:auto).
 
-      <a href="/profile.html" class="hm-btn hm-btn--ghost hm-btn--sm" data-auth="logged-in" hidden>My profile</a>
-      <button type="button" class="hm-btn hm-btn--soft hm-btn--sm" data-action="logout" data-auth="logged-in" hidden>Log out</button>
-    </div>
-  </div>
+      Contains (visibility controlled by auth state + viewport CSS):
+        1. hm-nav-cta      — mobile-only; logged-out auth CTAs always visible
+        2. hm-nav-actions  — desktop-only; logged-out auth CTAs
+        3. hm-nav-profile  — all viewports; logged-in avatar + dropdown
+        4. hm-nav-toggle   — mobile-only; hamburger for nav-links drawer
+    -->
+    <div class="hm-nav-right">
+
+      <!-- 1. Mobile logged-out CTAs (always visible on mobile; hidden on desktop) -->
+      <div class="hm-nav-cta" data-auth="logged-out" aria-label="Get started">
+        <a href="/login.html" class="hm-btn hm-btn--ghost hm-btn--xs">Sign in</a>
+        <a href="/login.html" class="hm-btn hm-btn--primary hm-btn--xs">Get started</a>
+      </div>
+
+      <!-- 2. Desktop logged-out CTAs (hidden on mobile) -->
+      <div class="hm-nav-actions" data-auth="logged-out">
+        <a href="/login.html" class="hm-btn hm-btn--ghost hm-btn--sm">Sign in</a>
+        <a href="/login.html" class="hm-btn hm-btn--primary hm-btn--sm">Get started</a>
+      </div>
+
+      <!-- 3. Logged-in avatar + dropdown (all viewports; hidden until signed in) -->
+      <div class="hm-nav-profile" data-auth="logged-in" hidden>
+        <button
+          class="hm-nav-profile__btn"
+          id="hm-avatar-btn"
+          type="button"
+          aria-haspopup="true"
+          aria-expanded="false"
+          aria-label="Account menu"
+        >
+          <div class="hm-avatar hm-avatar--sm" id="hm-navbar-avatar" aria-hidden="true">Me</div>
+          <span class="hm-nav-profile__chevron" aria-hidden="true">▾</span>
+        </button>
+
+        <ul class="hm-nav-profile__dropdown" id="hm-avatar-dropdown" role="menu">
+          <li role="none">
+            <a href="/profile.html" class="hm-nav-profile__item" role="menuitem">
+              My Profile
+            </a>
+          </li>
+          <li role="none">
+            <button
+              type="button"
+              class="hm-nav-profile__item hm-nav-profile__item--danger"
+              role="menuitem"
+              data-action="logout"
+            >
+              Log out
+            </button>
+          </li>
+        </ul>
+      </div>
+
+      <!-- 4. Hamburger toggle (mobile only) -->
+      <button
+        class="hm-nav-toggle"
+        type="button"
+        id="hm-nav-toggle"
+        aria-controls="hm-nav-links"
+        aria-expanded="false"
+        aria-label="Open menu"
+      >
+        <span></span>
+      </button>
+
+    </div><!-- /.hm-nav-right -->
+
+  </div><!-- /.hm-navbar__inner -->
 </nav>
-
-<script>
-  (function () {
-    const nav = document.getElementById('hm-navbar');
-    const toggle = document.getElementById('hm-nav-toggle');
-    if (!nav || !toggle) return;
-    toggle.addEventListener('click', function () {
-      const open = nav.classList.toggle('is-open');
-      toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-      toggle.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
-    });
-  })();
-</script>

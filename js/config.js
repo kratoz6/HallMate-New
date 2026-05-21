@@ -29,6 +29,7 @@ export const ROUTES = Object.freeze({
   login: '/login.html',
   onboarding: '/onboarding.html',
   dashboard: '/dashboard.html',
+  connections: '/connections.html',
   profile: '/profile.html',
 });
 

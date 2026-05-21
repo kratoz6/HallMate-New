@@ -300,3 +300,6 @@
 .hm-kv { display: grid; grid-template-columns: 160px 1fr; row-gap: 12px; column-gap: var(--hm-space-4); }
 .hm-kv dt { color: var(--hm-text-subtle); font-size: var(--hm-text-sm); font-weight: 500; }
 .hm-kv dd { margin: 0; color: var(--hm-text); font-weight: 500; }
+/* Empty-state prompts ("Add your college", etc.) — muted + italic so they read
+   as prompts rather than as real profile values. */
+.hm-kv dd.hm-kv__empty { color: var(--hm-text-subtle); font-style: italic; font-weight: 400; }

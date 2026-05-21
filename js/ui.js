@@ -27,11 +27,116 @@ export async function mountPartial(selector, url) {
 }
 
 // Loads the navbar + footer in parallel into their mount points.
-export function mountChrome() {
-  return Promise.all([
+// Wires all navbar interactivity AFTER the HTML is injected — inline <script>
+// tags inside innerHTML are never executed by the browser.
+export async function mountChrome() {
+  await Promise.all([
     mountPartial('[data-include="navbar"]', '/components/navbar.html'),
     mountPartial('[data-include="footer"]', '/components/footer.html'),
   ]);
+  wireNavbarToggle();
+  wireAvatarDropdown();
+}
+
+// Hamburger / mobile-drawer wiring. Idempotent — safe to call multiple times
+// (e.g. if the navbar is ever re-mounted) because handlers are tagged via a
+// data attribute and removed before re-attachment.
+const MOBILE_BREAKPOINT = '(max-width: 991.98px)';
+
+export function wireNavbarToggle() {
+  const nav = document.getElementById('hm-navbar');
+  const toggle = document.getElementById('hm-nav-toggle');
+  if (!nav || !toggle) return;
+
+  // Guard against duplicate wiring (e.g. if mountChrome runs twice).
+  if (nav.dataset.hmNavWired === '1') return;
+  nav.dataset.hmNavWired = '1';
+
+  const closeMenu = () => {
+    if (!nav.classList.contains('is-open')) return;
+    nav.classList.remove('is-open');
+    toggle.setAttribute('aria-expanded', 'false');
+    toggle.setAttribute('aria-label', 'Open menu');
+    // Release body scroll-lock applied when drawer was opened.
+    document.body.style.overflow = '';
+  };
+
+  const openMenu = () => {
+    nav.classList.add('is-open');
+    toggle.setAttribute('aria-expanded', 'true');
+    toggle.setAttribute('aria-label', 'Close menu');
+    // Prevent page behind the drawer from scrolling.
+    document.body.style.overflow = 'hidden';
+  };
+
+  // Toggle button — open/close drawer.
+  toggle.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (nav.classList.contains('is-open')) closeMenu();
+    else openMenu();
+  });
+
+  // Click on any nav link or drawer action auto-closes the drawer on mobile.
+  nav.addEventListener('click', (e) => {
+    const link = e.target.closest(
+      '.hm-nav-links a, .hm-nav-links__action, .hm-nav-actions a, .hm-nav-actions button'
+    );
+    if (!link) return;
+    if (window.matchMedia(MOBILE_BREAKPOINT).matches) closeMenu();
+  });
+
+  // Click outside the navbar closes the menu.
+  document.addEventListener('click', (e) => {
+    if (!nav.classList.contains('is-open')) return;
+    if (nav.contains(e.target)) return;
+    closeMenu();
+  });
+
+  // Escape key closes the menu and returns focus to the toggle.
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    if (!nav.classList.contains('is-open')) return;
+    closeMenu();
+    toggle.focus();
+  });
+
+  // If the viewport grows past the mobile breakpoint while the drawer is
+  // open, drop the open state so the desktop layout is clean.
+  const mql = window.matchMedia(MOBILE_BREAKPOINT);
+  const onBreakpointChange = (ev) => { if (!ev.matches) closeMenu(); };
+  if (mql.addEventListener) mql.addEventListener('change', onBreakpointChange);
+  else if (mql.addListener) mql.addListener(onBreakpointChange); // legacy Safari
+}
+
+// Profile avatar dropdown wiring — idempotent, guarded by data attribute.
+// Uses a CSS class (is-open) instead of the hidden attr so enter/exit
+// transitions run correctly.
+export function wireAvatarDropdown() {
+  const btn      = document.getElementById('hm-avatar-btn');
+  const dropdown = document.getElementById('hm-avatar-dropdown');
+  if (!btn || !dropdown) return;
+  if (btn.dataset.hmDropdownWired === '1') return;
+  btn.dataset.hmDropdownWired = '1';
+
+  const open  = () => { dropdown.classList.add('is-open');    btn.setAttribute('aria-expanded', 'true'); };
+  const close = () => { dropdown.classList.remove('is-open'); btn.setAttribute('aria-expanded', 'false'); };
+  const toggle = () => dropdown.classList.contains('is-open') ? close() : open();
+
+  btn.addEventListener('click', (e) => { e.stopPropagation(); toggle(); });
+
+  // Close when clicking outside the profile container.
+  document.addEventListener('click', (e) => {
+    if (!dropdown.classList.contains('is-open')) return;
+    if (btn.closest('.hm-nav-profile').contains(e.target)) return;
+    close();
+  });
+
+  // Close on Escape, return focus to trigger button.
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape' || !dropdown.classList.contains('is-open')) return;
+    close();
+    btn.focus();
+  });
 }
 
 // --- Toast --------------------------------------------------------------------
