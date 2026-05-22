@@ -15,8 +15,24 @@ import {
   getProfileByPhone,
   getAcceptedConnections,
   getUsersByIds,
+  getBlockedUserIds,
 }                                from './supabase.js';
 import { formatPhonePretty }     from './utils.js';
+
+// Listener registered exactly once — survives re-renders. Removes any card
+// matching the blocked userId when the dashboard fires 'hm:user-blocked'.
+let blockListenerWired = false;
+function wireBlockedListenerOnce(root) {
+  if (blockListenerWired) return;
+  blockListenerWired = true;
+  window.addEventListener('hm:user-blocked', (e) => {
+    const id = e.detail?.userId;
+    if (!id) return;
+    const card = root.querySelector(`[data-conn-card-id="${id}"]`);
+    card?.remove();
+    if (!root.querySelector('[data-conn-card-id]')) renderEmpty(root);
+  });
+}
 
 // ─── Bootstrap ────────────────────────────────────────────────────────────────
 
@@ -36,6 +52,7 @@ async function init() {
 
 export async function runConnections(root, firebaseUser) {
   setLoading(root);
+  wireBlockedListenerOnce(root);
 
   const { data: me, error: meErr } = await getProfileByPhone(firebaseUser.phoneNumber);
   if (meErr || !me) {
@@ -43,20 +60,31 @@ export async function runConnections(root, firebaseUser) {
     return;
   }
 
-  const { data: connections, error: connErr } = await getAcceptedConnections(me.id);
-  if (connErr) {
-    renderError(root, connErr.message || 'Could not load connections.');
+  // Fetch connections + blocked IDs in parallel.
+  const [connsRes, blockedRes] = await Promise.all([
+    getAcceptedConnections(me.id),
+    getBlockedUserIds(me.id),
+  ]);
+  if (connsRes.error) {
+    renderError(root, connsRes.error.message || 'Could not load connections.');
     return;
   }
+  const connections = connsRes.data || [];
+  const blockedSet  = new Set((blockedRes.data || []).map(b => b.blocked_user_id));
 
-  if (!connections || connections.length === 0) {
+  if (connections.length === 0) {
     renderEmpty(root);
     return;
   }
 
   const otherIds = [...new Set(
     connections.map(c => c.sender_id === me.id ? c.receiver_id : c.sender_id)
-  )];
+  )].filter(id => !blockedSet.has(id));
+
+  if (otherIds.length === 0) {
+    renderEmpty(root);
+    return;
+  }
 
   const { data: partners, error: partnersErr } = await getUsersByIds(otherIds);
   if (partnersErr || !partners) {
@@ -188,7 +216,7 @@ function buildCard(user) {
   const chips       = travelChips(user.travel_mode, user.stay_plan);
 
   return `
-    <div class="hm-card hm-mate">
+    <div class="hm-card hm-mate" data-conn-card-id="${esc(user.id)}">
       <!-- Identity -->
       <div class="hm-mate__head">
         <div class="hm-avatar"
@@ -216,6 +244,15 @@ function buildCard(user) {
           ${telHref ? `<a href="${esc(telHref)}"
                           class="hm-btn hm-btn--ghost hm-btn--sm">📞 Call</a>` : ''}
         </div>
+      </div>
+
+      <!-- Block action — destructive, visually subdued, right-aligned -->
+      <div style="margin-top:var(--hm-space-2);text-align:right;">
+        <button class="hm-modal__block-btn" type="button"
+                data-conn-action="block" data-user-id="${esc(user.id)}"
+                aria-label="Block ${esc(name)}">
+          🚫 Block user
+        </button>
       </div>
     </div>`;
 }

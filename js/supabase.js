@@ -173,6 +173,17 @@ export function unblockUser(blockerUserId, blockedUserId) {
   );
 }
 
+/** Deletes ALL connection rows between two users (either direction, any status).
+ *  Used by the block flow so the relationship disappears immediately. */
+export function deleteConnectionsBetween(userIdA, userIdB) {
+  return query(
+    from('connections')
+      .delete()
+      .in('sender_id',   [userIdA, userIdB])
+      .in('receiver_id', [userIdA, userIdB])
+  );
+}
+
 export function sendConnectionRequest(senderId, receiverId) {
   return query(
     from('connections')

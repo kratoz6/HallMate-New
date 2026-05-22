@@ -3,7 +3,8 @@
 import { requireOnboarded } from './auth.js';
 import { getAllUsers, getUserByPhone, getMyConnections,
          sendConnectionRequest, respondToRequest, deleteRequest,
-         getBlockedUserIds, blockUser } from './supabase.js';
+         getBlockedUserIds, blockUser,
+         deleteConnectionsBetween } from './supabase.js';
 import { debounce } from './utils.js';
 import { toast, setButtonBusy } from './ui.js';
 import * as Relationships from './relationships.js';
@@ -543,15 +544,6 @@ function populateModal(user) {
   if (phoneEl)  { phoneEl.textContent = maskPhone(user.phone); phoneEl.hidden = false; }
   if (revealEl) revealEl.innerHTML = '';
 
-  // Block action — always visible, visually separated from main CTA.
-  const blockRow = document.getElementById('hm-modal-block-row');
-  if (blockRow) {
-    blockRow.innerHTML = `
-      <button class="hm-modal__block-btn"
-        data-conn-action="block" data-user-id="${esc(user.id)}"
-        type="button">🚫 Block this user</button>`;
-  }
-
   renderModalActions();
 }
 
@@ -897,13 +889,22 @@ async function doBlock(userId, reason) {
   const { error } = await blockUser(myUserId, userId, reason);
   if (error) { toast(error.message || 'Could not block user.', { variant: 'danger' }); return; }
 
+  // Remove any existing connection rows (in either direction) so the blocked
+  // user disappears from Connections immediately and can't re-establish via
+  // a stale row. Errors here are non-fatal — the block itself succeeded.
+  await deleteConnectionsBetween(myUserId, userId).catch(() => {});
+
   blockedUserIds.add(userId);
   allUsers = allUsers.filter((u) => u.id !== userId);
 
   applyFilters();
   renderRequests();
   updateNavBadge();
-  closeModal(); // close the profile modal
+  closeModal(); // close the profile modal if it was open
+
+  // Notify the Connections panel (if mounted) to drop this user's card.
+  window.dispatchEvent(new CustomEvent('hm:user-blocked', { detail: { userId } }));
+
   toast('User blocked — they won\'t appear in Find Mates.', { variant: 'info' });
 }
 
