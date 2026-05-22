@@ -166,60 +166,104 @@ function setDd(ddId, value, prompt) {
 // ─── Edit mode ────────────────────────────────────────────────────────────────
 
 function wireEditButtons() {
-  Object.entries(SECTIONS).forEach(([key, sec]) => {
-    const btn = document.getElementById(sec.editBtnId);
-    if (btn) btn.addEventListener('click', () => enterEditMode(key));
-  });
+  // Single "Edit profile" button opens all sections at once
+  document.getElementById('hm-edit-all')
+    ?.addEventListener('click', enterEditAll);
+  document.getElementById('hm-cancel-all')
+    ?.addEventListener('click', exitEditAll);
+  document.getElementById('hm-save-all')
+    ?.addEventListener('click', () => saveAll(document.getElementById('hm-save-all')));
 }
+
+// ── Global edit: enter all sections at once ───────────────────────────────────
+
+function enterEditAll() {
+  document.getElementById('hm-edit-all').hidden = true;
+  document.getElementById('hm-edit-all-actions').hidden = false;
+  Object.keys(SECTIONS).forEach(key => enterEditMode(key));
+}
+
+async function saveAll(saveBtn) {
+  // Clear previous error
+  document.getElementById('hm-save-all-error')?.remove();
+
+  // Collect + validate all field values across every section
+  const updates = {};
+  let valid = true;
+  for (const sec of Object.values(SECTIONS)) {
+    for (const f of sec.fields) {
+      const dd  = document.getElementById(f.ddId);
+      const inp = dd?.querySelector('[data-field-key]');
+      if (!inp) continue;
+      const v = inp.value.trim() || null;
+      if (f.required && !v) {
+        inp.classList.add('hm-input--invalid');
+        valid = false;
+      } else {
+        inp.classList.remove('hm-input--invalid');
+        updates[f.key] = v;
+      }
+    }
+  }
+  if (!valid) return;
+
+  setButtonBusy(saveBtn, true, 'Saving…');
+  const { error } = await upsertUser({ phone: profilePhone, profile_completed: true, ...updates });
+  setButtonBusy(saveBtn, false);
+
+  if (error) {
+    const errEl = document.createElement('p');
+    errEl.id = 'hm-save-all-error';
+    errEl.style.cssText = 'color:var(--hm-danger);font-size:var(--hm-text-xs);margin-top:8px;margin-bottom:0;';
+    errEl.textContent = error.message || 'Save failed. Please try again.';
+    saveBtn.before(errEl);
+    return;
+  }
+
+  // Optimistic merge
+  Object.assign(profileData, updates);
+  if ('full_name' in updates) {
+    const name = trimOrNull(profileData.full_name);
+    setText('hm-profile-name', name || 'Your name');
+    setAvatar(name);
+    cacheInitials(name);
+  }
+
+  exitEditAll();
+}
+
+function exitEditAll() {
+  Object.keys(SECTIONS).forEach(key => exitEditMode(key));
+  document.getElementById('hm-save-all-error')?.remove();
+  document.getElementById('hm-edit-all').hidden = false;
+  document.getElementById('hm-edit-all-actions').hidden = true;
+}
+
+// ── Per-section input rendering (no button swap — controlled globally) ─────────
 
 function enterEditMode(sectionKey) {
   const sec     = SECTIONS[sectionKey];
   const article = document.getElementById(sec.sectionId);
-  const editBtn = document.getElementById(sec.editBtnId);
-  if (!article || !editBtn) return;
+  if (!article) return;
 
-  // ── Swap Edit → Save + Cancel in the section header ──────────────────────
-  const actionWrap = document.createElement('div');
-  actionWrap.className = 'd-flex gap-2';
-  actionWrap.setAttribute('data-section-actions', '');
-
-  const cancelBtn = document.createElement('button');
-  cancelBtn.type      = 'button';
-  cancelBtn.className = 'hm-btn hm-btn--ghost hm-btn--sm';
-  cancelBtn.textContent = 'Cancel';
-  cancelBtn.addEventListener('click', () => exitEditMode(sectionKey));
-
-  const saveBtn = document.createElement('button');
-  saveBtn.type      = 'button';
-  saveBtn.className = 'hm-btn hm-btn--primary hm-btn--sm';
-  saveBtn.textContent = 'Save';
-  saveBtn.addEventListener('click', () => saveSection(sectionKey, saveBtn));
-
-  actionWrap.append(cancelBtn, saveBtn);
-  editBtn.replaceWith(actionWrap);
-
-  // ── Replace each <dd> text with the appropriate input ────────────────────
+  // Replace each <dd> text with the appropriate input
   sec.fields.forEach(f => {
     const dd = document.getElementById(f.ddId);
     if (!dd) return;
-
     const currentVal = trimOrNull(profileData[f.key]) || '';
     dd.textContent = '';
     dd.classList.remove('hm-kv__empty');
-
     const input = buildInput(f, currentVal);
     input.setAttribute('data-field-key', f.key);
     dd.appendChild(input);
   });
 
-  // ── Wire state → district cascade for the centre section ─────────────────
+  // Wire state → district cascade for the centre section
   if (sectionKey === 'centre') {
-    const stateEl  = document.getElementById('hm-kv-state')?.querySelector('select');
-    const distEl   = document.getElementById('hm-kv-district')?.querySelector('select');
+    const stateEl = document.getElementById('hm-kv-state')?.querySelector('select');
+    const distEl  = document.getElementById('hm-kv-district')?.querySelector('select');
     if (stateEl && distEl) {
-      // Populate district options for the current state (refresh(false) runs inside)
       wireDistrictCascade(stateEl, distEl);
-      // Restore saved district value now that the options exist in the DOM
       const savedDist = trimOrNull(profileData.district) || '';
       if (savedDist) distEl.value = savedDist;
     }
@@ -337,24 +381,8 @@ function exitEditMode(sectionKey) {
   const sec     = SECTIONS[sectionKey];
   const article = document.getElementById(sec.sectionId);
   if (!article) return;
-
   article.classList.remove('is-editing');
-  article.querySelector('.hm-profile-save-error')?.remove();
-
-  // Restore dd read values from profileData
   hydrateSection(sec);
-
-  // Swap Save+Cancel back to Edit button
-  const actionWrap = article.querySelector('[data-section-actions]');
-  if (!actionWrap) return;
-
-  const editBtn = document.createElement('button');
-  editBtn.type      = 'button';
-  editBtn.className = 'hm-btn hm-btn--ghost hm-btn--sm';
-  editBtn.id        = sec.editBtnId;
-  editBtn.textContent = 'Edit';
-  editBtn.addEventListener('click', () => enterEditMode(sectionKey));
-  actionWrap.replaceWith(editBtn);
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

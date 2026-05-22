@@ -44,6 +44,16 @@
             <p class="hm-profile-card__name" id="hm-profile-name">Your name</p>
             <p class="hm-profile-card__phone" id="hm-profile-phone">+91 ••••• •••••</p>
             <span class="hm-badge hm-badge--success">Phone verified</span>
+
+            <!-- Single edit control for entire profile -->
+            <button type="button" class="hm-btn hm-btn--primary hm-btn--sm hm-btn--block"
+                    id="hm-edit-all" style="margin-top:var(--hm-space-4);">Edit profile</button>
+            <div id="hm-edit-all-actions" hidden style="margin-top:var(--hm-space-4);">
+              <button type="button" class="hm-btn hm-btn--primary hm-btn--sm hm-btn--block"
+                      id="hm-save-all">Save changes</button>
+              <button type="button" class="hm-btn hm-btn--ghost hm-btn--sm hm-btn--block"
+                      id="hm-cancel-all" style="margin-top:8px;">Cancel</button>
+            </div>
           </div>
         </aside>
 
@@ -54,13 +64,10 @@
           <article class="hm-card hm-section-card" id="hm-section-about">
             <header class="hm-section-card__header">
               <h3>About you</h3>
-              <button type="button" class="hm-btn hm-btn--ghost hm-btn--sm"
-                      id="hm-edit-about">Edit</button>
             </header>
             <dl class="hm-kv">
               <dt>Name</dt>    <dd id="hm-kv-name">—</dd>
               <dt>Gender</dt>  <dd id="hm-kv-gender">—</dd>
-              <dt>College</dt> <dd id="hm-kv-college">—</dd>
             </dl>
           </article>
 
@@ -68,8 +75,6 @@
           <article class="hm-card hm-section-card" id="hm-section-centre">
             <header class="hm-section-card__header">
               <h3>Exam centre</h3>
-              <button type="button" class="hm-btn hm-btn--ghost hm-btn--sm"
-                      id="hm-edit-centre">Edit</button>
             </header>
             <dl class="hm-kv">
               <dt>State</dt>        <dd id="hm-kv-state">—</dd>
@@ -82,8 +87,6 @@
           <article class="hm-card hm-section-card" id="hm-section-travel">
             <header class="hm-section-card__header">
               <h3>Travel &amp; stay</h3>
-              <button type="button" class="hm-btn hm-btn--ghost hm-btn--sm"
-                      id="hm-edit-travel">Edit</button>
             </header>
             <dl class="hm-kv">
               <dt>Travel mode</dt> <dd id="hm-kv-travel">—</dd>
