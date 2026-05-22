@@ -2,7 +2,8 @@
 
 import { requireOnboarded } from './auth.js';
 import { getAllUsers, getUserByPhone, getMyConnections,
-         sendConnectionRequest, respondToRequest, deleteRequest } from './supabase.js';
+         sendConnectionRequest, respondToRequest, deleteRequest,
+         getBlockedUserIds, blockUser } from './supabase.js';
 import { debounce } from './utils.js';
 import { toast, setButtonBusy } from './ui.js';
 import * as Relationships from './relationships.js';
@@ -17,6 +18,7 @@ let modalUser       = null;
 let myUserId        = null;
 let firebaseUser    = null;   // stored for lazy connections load
 let connectionsLoaded = false;
+let blockedUserIds  = new Set(); // blocked_user_id values for the current user
 
 const FILTERS = [
   // fallback: old users who predate exam_centre_* columns still match via state/district
@@ -41,10 +43,17 @@ async function init() {
   const { data: me } = await getUserByPhone(firebaseUser.phoneNumber);
   myUserId = me?.id || null;
 
+  // Load blocked-user IDs up front so filtering is instant throughout the session.
+  if (myUserId) {
+    const { data: blocked } = await getBlockedUserIds(myUserId);
+    blockedUserIds = new Set((blocked || []).map(b => b.blocked_user_id));
+  }
+
   wireExamSwitcher();
   wireFilters();
   wireModal();
   wireConnectionActions();
+  wireBlockModal();
 
   // Subscribe once — drives all incremental UI updates across cards, modal, requests tab.
   Relationships.subscribe((changedUserId) => {
@@ -67,7 +76,9 @@ async function loadData() {
   if (usersRes.error) { renderError(usersRes.error.message); return; }
 
   Relationships.hydrate(connsRes.data || [], myUserId);
-  allUsers = (usersRes.data || []).filter((u) => u.id !== myUserId);
+  allUsers = (usersRes.data || []).filter(
+    (u) => u.id !== myUserId && !blockedUserIds.has(u.id)
+  );
 
   renderRequests();
   updateNavBadge();
@@ -287,6 +298,7 @@ function wireConnectionActions() {
     const connId = btn.dataset.connId || null;
 
     if (action === 'reveal') { doReveal(); return; }
+    if (action === 'block')  { openBlockModal(userId); return; }
 
     setButtonBusy(btn, true);
     try {
@@ -370,11 +382,12 @@ function updateCount(n) {
 }
 
 function updateNavBadge() {
-  const n = Relationships.countIncomingPending();
-  // Nav-bar badge (persists across all pages via navbar component)
+  // Exclude blocked users from the pending-request count.
+  const n = Relationships.getIncomingPending()
+    .filter(({ userId }) => !blockedUserIds.has(userId))
+    .length;
   const navBadge = document.getElementById('hm-requests-badge');
   if (navBadge) { navBadge.textContent = n; navBadge.hidden = n === 0; }
-  // Requests tab badge (dashboard only)
   const tabBadge = document.getElementById('hm-requests-tab-badge');
   if (tabBadge) { tabBadge.textContent = n; tabBadge.hidden = n === 0; }
 }
@@ -529,6 +542,15 @@ function populateModal(user) {
   const revealEl = document.getElementById('hm-modal-contact-reveal');
   if (phoneEl)  { phoneEl.textContent = maskPhone(user.phone); phoneEl.hidden = false; }
   if (revealEl) revealEl.innerHTML = '';
+
+  // Block action — always visible, visually separated from main CTA.
+  const blockRow = document.getElementById('hm-modal-block-row');
+  if (blockRow) {
+    blockRow.innerHTML = `
+      <button class="hm-modal__block-btn"
+        data-conn-action="block" data-user-id="${esc(user.id)}"
+        type="button">🚫 Block this user</button>`;
+  }
 
   renderModalActions();
 }
@@ -821,6 +843,53 @@ function esc(str) {
   return String(str ?? '')
     .replace(/&/g, '&amp;').replace(/</g, '&lt;')
     .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// ─── Block ────────────────────────────────────────────────────────────────────
+
+function openBlockModal(userId) {
+  const modal = document.getElementById('hm-block-modal');
+  if (!modal) return;
+  modal.dataset.targetUserId = userId;
+  modal.classList.add('is-open');
+}
+
+function wireBlockModal() {
+  const modal = document.getElementById('hm-block-modal');
+  if (!modal) return;
+
+  document.getElementById('hm-block-cancel')
+    ?.addEventListener('click', () => modal.classList.remove('is-open'));
+
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) modal.classList.remove('is-open');
+  });
+
+  document.getElementById('hm-block-confirm')
+    ?.addEventListener('click', async () => {
+      const userId = modal.dataset.targetUserId;
+      if (!userId) return;
+      const btn = document.getElementById('hm-block-confirm');
+      setButtonBusy(btn, true, 'Blocking…');
+      await doBlock(userId);
+      setButtonBusy(btn, false);
+      modal.classList.remove('is-open');
+    });
+}
+
+async function doBlock(userId) {
+  if (!myUserId) return;
+  const { error } = await blockUser(myUserId, userId);
+  if (error) { toast(error.message || 'Could not block user.', { variant: 'danger' }); return; }
+
+  blockedUserIds.add(userId);
+  allUsers = allUsers.filter((u) => u.id !== userId);
+
+  applyFilters();
+  renderRequests();
+  updateNavBadge();
+  closeModal(); // close the profile modal
+  toast('User blocked — they won\'t appear in Find Mates.', { variant: 'info' });
 }
 
 // ─── Enrichment helpers ───────────────────────────────────────────────────────

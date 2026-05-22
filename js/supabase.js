@@ -130,6 +130,45 @@ export function getUsersByIds(ids) {
   );
 }
 
+// ─── Block helpers ────────────────────────────────────────────────────────────
+
+/** Returns { blocked_user_id }[] for every user blocked by userId. */
+export function getBlockedUserIds(userId) {
+  return query(
+    from('blocked_users')
+      .select('blocked_user_id')
+      .eq('blocker_user_id', userId)
+  );
+}
+
+/** Full block list with timestamps — for the Blocked Users management page. */
+export function getBlockedList(userId) {
+  return query(
+    from('blocked_users')
+      .select('id, blocked_user_id, created_at')
+      .eq('blocker_user_id', userId)
+      .order('created_at', { ascending: false })
+  );
+}
+
+export function blockUser(blockerUserId, blockedUserId) {
+  return query(
+    from('blocked_users')
+      .insert({ blocker_user_id: blockerUserId, blocked_user_id: blockedUserId })
+      .select('id')
+      .single()
+  );
+}
+
+export function unblockUser(blockerUserId, blockedUserId) {
+  return query(
+    from('blocked_users')
+      .delete()
+      .eq('blocker_user_id', blockerUserId)
+      .eq('blocked_user_id', blockedUserId)
+  );
+}
+
 export function sendConnectionRequest(senderId, receiverId) {
   return query(
     from('connections')
