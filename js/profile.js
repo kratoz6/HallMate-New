@@ -23,6 +23,8 @@ const GENDER_OPTS = ['Female', 'Male', 'Prefer not to say'];
 
 // STATES imported from location-data.js — single source of truth for all 36 entries.
 
+const EXAM_TYPE_OPTS = ['NEET PG', 'NEET UG', 'INICET', 'NEET MDS', 'NEET SS'];
+
 const TRAVEL_OPTS = ['By train', 'By flight', 'By bus', 'Self-drive', 'Other'];
 
 const STAY_OPTS = [
@@ -59,15 +61,18 @@ const SECTIONS = {
     editBtnId: 'hm-edit-centre',
     fields: [
       {
-        key: 'exam_centre_state', ddId: 'hm-kv-exam-state', type: 'select',
-        options: STATES, prompt: 'Add exam centre state',
-        fallback: 'state',     // show home state for old users without exam_centre_state
+        key: 'exam_type', ddId: 'hm-kv-exam-type', type: 'select',
+        options: EXAM_TYPE_OPTS, prompt: 'Add your exam type',
       },
       {
-        // options: [] → populated dynamically by wireDistrictCascade after render
+        key: 'exam_centre_state', ddId: 'hm-kv-exam-state', type: 'select',
+        options: STATES, prompt: 'Add exam centre state',
+        fallback: 'state',
+      },
+      {
         key: 'exam_centre_district', ddId: 'hm-kv-exam-district', type: 'select',
         options: [], prompt: 'Add exam centre district',
-        fallback: 'district',  // show home district for old users without exam_centre_district
+        fallback: 'district',
       },
       {
         key: 'exam_center', ddId: 'hm-kv-exam-center', type: 'text',

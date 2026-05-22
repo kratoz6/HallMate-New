@@ -57,18 +57,25 @@ async function init() {
     goToStep(3);
   });
 
-  document.getElementById('hm-form-step3').addEventListener('submit', async (e) => {
+  document.getElementById('hm-form-step3').addEventListener('submit', (e) => {
     e.preventDefault();
     if (!validate([
       { id: 'hm-exam-state',    errId: 'hm-err-exam-state',    msg: 'Select your exam centre state.' },
       { id: 'hm-exam-district', errId: 'hm-err-exam-district', msg: 'Select your exam centre district.' },
       { id: 'hm-exam-center',   errId: 'hm-err-exam-center',   msg: 'Enter your exam centre name.' },
+      { id: 'hm-exam-type',     errId: 'hm-err-exam-type',     msg: 'Select your exam type.' },
     ])) return;
     collected.exam_centre_state    = val('hm-exam-state');
     collected.exam_centre_district = val('hm-exam-district');
     collected.exam_center          = val('hm-exam-center');
-    collected.travel_mode          = val('hm-travel-mode')  || null;
-    collected.stay_plan            = val('hm-stay-plan')    || null;
+    collected.exam_type            = val('hm-exam-type');
+    goToStep(4);
+  });
+
+  document.getElementById('hm-form-step4').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    collected.travel_mode = val('hm-travel-mode') || null;
+    collected.stay_plan   = val('hm-stay-plan')   || null;
     await saveProfile();
   });
 }
@@ -82,17 +89,18 @@ async function saveProfile() {
   setButtonBusy(btn, true, 'Saving…');
 
   const { error } = await upsertUser({
-    phone:             firebaseUser.phoneNumber,
-    full_name:         collected.full_name,
-    gender:            collected.gender,
+    phone:                 firebaseUser.phoneNumber,
+    full_name:             collected.full_name,
+    gender:                collected.gender,
     state:                 collected.state,
     district:              collected.district,
     exam_centre_state:     collected.exam_centre_state,
     exam_centre_district:  collected.exam_centre_district,
     exam_center:           collected.exam_center,
-    travel_mode:       collected.travel_mode,
-    stay_plan:         collected.stay_plan,
-    profile_completed: true,
+    exam_type:             collected.exam_type,
+    travel_mode:           collected.travel_mode,
+    stay_plan:             collected.stay_plan,
+    profile_completed:     true,
   });
 
   if (error) {

@@ -28,12 +28,13 @@
         <!-- Progress -->
         <div class="hm-step-meta">
           <span>Set up profile</span>
-          <span><span id="hm-step-current">1</span> / 3</span>
+          <span><span id="hm-step-current">1</span> / 4</span>
         </div>
         <div class="hm-steps" aria-label="Onboarding progress">
           <span class="hm-steps__dot is-active" data-step="1"></span>
           <span class="hm-steps__dot" data-step="2"></span>
           <span class="hm-steps__dot" data-step="3"></span>
+          <span class="hm-steps__dot" data-step="4"></span>
         </div>
 
         <!-- STEP 1 — Name & gender -->
@@ -100,12 +101,11 @@
           </form>
         </section>
 
-        <!-- STEP 3 — Exam centre -->
+        <!-- STEP 3 — Exam details -->
         <section data-step-panel="3" hidden>
           <h1 class="hm-auth__title">Your exam centre</h1>
           <p class="hm-auth__subtitle">We use this to match you with students at the same centre.</p>
           <form id="hm-form-step3" novalidate>
-            <!-- Exam centre location — drives matching -->
             <div class="row g-3">
               <div class="col-sm-6">
                 <div class="hm-field">
@@ -133,10 +133,34 @@
                   <p class="text-danger small mt-1" id="hm-err-exam-center" hidden></p>
                 </div>
               </div>
+              <div class="col-sm-6">
+                <div class="hm-field">
+                  <label class="hm-label" for="hm-exam-type">Exam type <span class="text-danger">*</span></label>
+                  <select class="hm-select" id="hm-exam-type" required>
+                    <option value="">Select exam…</option>
+                    <option value="NEET PG">NEET PG</option>
+                    <option value="NEET UG">NEET UG</option>
+                    <option value="INICET">INICET</option>
+                    <option value="NEET MDS">NEET MDS</option>
+                    <option value="NEET SS">NEET SS</option>
+                  </select>
+                  <p class="text-danger small mt-1" id="hm-err-exam-type" hidden></p>
+                </div>
+              </div>
             </div>
+            <div class="d-flex justify-content-between mt-4">
+              <button class="hm-btn hm-btn--ghost" type="button" data-go-step="2">← Back</button>
+              <button class="hm-btn hm-btn--primary" type="submit">Continue →</button>
+            </div>
+          </form>
+        </section>
 
-            <!-- Travel & Stay (optional) -->
-            <div class="row g-3 mt-1">
+        <!-- STEP 4 — Travel & stay -->
+        <section data-step-panel="4" hidden>
+          <h1 class="hm-auth__title">Travel &amp; stay</h1>
+          <p class="hm-auth__subtitle">Help centre mates coordinate with you on exam day. You can update these later.</p>
+          <form id="hm-form-step4" novalidate>
+            <div class="row g-3">
               <div class="col-sm-6">
                 <div class="hm-field">
                   <label class="hm-label" for="hm-travel-mode">Travel mode</label>
@@ -164,10 +188,10 @@
               </div>
             </div>
 
-            <p id="hm-save-error" class="text-danger small" hidden></p>
+            <p id="hm-save-error" class="text-danger small mt-3" hidden></p>
 
             <div class="d-flex justify-content-between mt-4">
-              <button class="hm-btn hm-btn--ghost" type="button" data-go-step="2">← Back</button>
+              <button class="hm-btn hm-btn--ghost" type="button" data-go-step="3">← Back</button>
               <button class="hm-btn hm-btn--primary" type="submit" id="hm-finish-btn">Finish &amp; find mates</button>
             </div>
           </form>

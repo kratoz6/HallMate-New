@@ -46,7 +46,7 @@ export function getProfileByPhone(phone) {
     from('users')
       .select(
         'id, phone, full_name, gender, state, district, ' +
-        'exam_centre_state, exam_centre_district, exam_center, ' +
+        'exam_centre_state, exam_centre_district, exam_center, exam_type, ' +
         'college, travel_mode, stay_plan, bio, ' +
         'profile_completed, is_profile_paused, created_at'
       )
