@@ -1,6 +1,6 @@
 // HallMate — Dashboard: users feed + filtering + connection system + phone reveal.
 
-import { requireAuth } from './auth.js';
+import { requireOnboarded } from './auth.js';
 import { getAllUsers, getUserByPhone, getMyConnections,
          sendConnectionRequest, respondToRequest, deleteRequest } from './supabase.js';
 import { debounce } from './utils.js';
@@ -33,7 +33,7 @@ const AVATAR_COLORS = ['#FF6B35','#4F46E5','#10B981','#F59E0B','#8B5CF6','#06B6D
 // ─── Init ─────────────────────────────────────────────────────────────────────
 
 async function init() {
-  firebaseUser = await requireAuth();
+  firebaseUser = await requireOnboarded();
   if (!firebaseUser) return;
 
   wireTabs();

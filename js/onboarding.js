@@ -4,7 +4,7 @@
 import { requireAuth } from './auth.js';
 import { upsertUser } from './supabase.js';
 import { setButtonBusy } from './ui.js';
-import { ROUTES } from './config.js';
+import { ROUTES, STORAGE_KEYS } from './config.js';
 import { populateStateSelect, wireDistrictCascade } from './location-data.js';
 
 let firebaseUser = null;
@@ -109,6 +109,9 @@ async function saveProfile() {
     setButtonBusy(btn, false);
     return;
   }
+
+  // Mark onboarding complete so guards + navbar update immediately on redirect.
+  try { sessionStorage.setItem(STORAGE_KEYS.profileCompleted, 'true'); } catch {}
 
   window.location.replace(ROUTES.dashboard);
 }

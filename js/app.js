@@ -58,8 +58,18 @@ function renderNavAuthState(user) {
   const brandLink = document.getElementById('hm-brand-link');
   if (brandLink) brandLink.href = user ? ROUTES.dashboard : ROUTES.landing;
 
-  // Update navbar avatar initials from sessionStorage cache set by profile.js.
-  if (user) updateNavbarAvatar();
+  if (user) {
+    updateNavbarAvatar();
+
+    // Hide the profile avatar/dropdown during onboarding.
+    // handlePostLogin() writes 'false' before redirecting to onboarding, so this
+    // fires on the first render of every onboarding page without any extra fetch.
+    const navProfile = document.querySelector('.hm-nav-profile');
+    if (navProfile) {
+      const done = sessionStorage.getItem(STORAGE_KEYS.profileCompleted);
+      if (done === 'false') navProfile.hidden = true;
+    }
+  }
 }
 
 // Reads cached initials written by profile.js (STORAGE_KEYS.profile) so the

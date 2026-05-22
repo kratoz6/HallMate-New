@@ -39,6 +39,7 @@ export const STORAGE_KEYS = Object.freeze({
   authUser: 'hm.auth.user',
   profile: 'hm.profile',
   redirectAfterLogin: 'hm.auth.redirect',
+  profileCompleted: 'hm.profile.completed', // 'true' | 'false' — set after login / onboarding
 });
 
 export const FEATURE_FLAGS = Object.freeze({

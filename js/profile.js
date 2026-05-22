@@ -6,7 +6,7 @@
 //   2. Click "Save" → validate → upsertUser (Supabase) → re-render read view
 //   3. Click "Cancel" → restore read view from in-memory profileData (no fetch)
 
-import { requireAuth, logout }                         from './auth.js';
+import { requireOnboarded, logout }                    from './auth.js';
 import { getProfileByPhone, upsertUser,
          setPausedStatus, deleteUserData }              from './supabase.js';
 import { formatPhonePretty }                           from './utils.js';
@@ -99,7 +99,7 @@ const SECTIONS = {
 
 // ─── Bootstrap ────────────────────────────────────────────────────────────────
 async function init() {
-  const firebaseUser = await requireAuth();
+  const firebaseUser = await requireOnboarded();
   if (!firebaseUser) return;
 
   profilePhone = firebaseUser.phoneNumber || '';
