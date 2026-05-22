@@ -78,24 +78,24 @@ async function loadData() {
 const VALID_TABS = ['requests', 'find-mates', 'connections'];
 
 function wireTabs() {
-  // Resolve starting tab from URL hash; default to 'requests' (first tab)
+  // Resolve starting tab from URL hash; default to 'find-mates'
   const initialHash = location.hash.slice(1);
-  const startTab = VALID_TABS.includes(initialHash) ? initialHash : 'requests';
-  if (startTab !== 'requests') activateTab(startTab); // HTML already shows requests
+  const startTab = VALID_TABS.includes(initialHash) ? initialHash : 'find-mates';
+  if (startTab !== 'find-mates') activateTab(startTab); // HTML already shows find-mates
 
   document.querySelectorAll('.hm-tab[data-tab]').forEach(btn => {
     btn.addEventListener('click', () => {
       const t = btn.dataset.tab;
       activateTab(t);
-      // 'requests' is the canonical default — no hash needed
-      history.replaceState(null, '', t === 'requests' ? location.pathname : `#${t}`);
+      // 'find-mates' is the canonical default — no hash needed
+      history.replaceState(null, '', t === 'find-mates' ? location.pathname : `#${t}`);
     });
   });
 
   // Respond to hash changes (e.g. nav-bar Connections link while on dashboard)
   window.addEventListener('hashchange', () => {
     const h = location.hash.slice(1);
-    activateTab(VALID_TABS.includes(h) ? h : 'requests');
+    activateTab(VALID_TABS.includes(h) ? h : 'find-mates');
   });
 }
 

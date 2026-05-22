@@ -27,25 +27,25 @@
 
       <!-- Dashboard tab bar -->
       <div class="hm-tabs" role="tablist" aria-label="Dashboard sections">
-        <button class="hm-tab is-active" role="tab" data-tab="requests" aria-selected="true">
+        <button class="hm-tab" role="tab" data-tab="requests" aria-selected="false">
           Requests
           <span id="hm-requests-tab-badge" class="hm-nav-badge" hidden aria-live="polite">0</span>
         </button>
-        <button class="hm-tab" role="tab" data-tab="find-mates" aria-selected="false">Find Mates</button>
+        <button class="hm-tab is-active" role="tab" data-tab="find-mates" aria-selected="true">Find Mates</button>
         <button class="hm-tab" role="tab" data-tab="connections" aria-selected="false">Connections</button>
       </div>
 
       <!-- ── Requests panel ─────────────────────────────────────────────── -->
-      <div id="hm-panel-requests">
+      <div id="hm-panel-requests" hidden>
         <div class="hm-grid-cards" id="hm-requests-grid"></div>
       </div>
 
       <!-- ── Find Mates panel ────────────────────────────────────────────── -->
-      <div id="hm-panel-find-mates" hidden>
+      <div id="hm-panel-find-mates">
 
       <header class="hm-feed-header">
         <div>
-          <span class="hm-eyebrow">NEET PG 2026</span>
+          <span class="hm-eyebrow">NEET PG</span>
           <h1 style="margin-top: 12px;">Find HallMates</h1>
           <p class="hm-text-muted">
             Students registered at the same exam centre.
