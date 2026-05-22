@@ -107,7 +107,7 @@
           <p class="hm-auth__subtitle">We use this to match you with students at the same centre.</p>
           <form id="hm-form-step3" novalidate>
             <div class="row g-3">
-              <!-- Row 1: Exam type · Exam centre state -->
+              <!-- Row 1: Exam type · Exam centre name -->
               <div class="col-sm-6">
                 <div class="hm-field">
                   <label class="hm-label" for="hm-exam-type">Exam type <span class="text-danger">*</span></label>
@@ -124,6 +124,15 @@
               </div>
               <div class="col-sm-6">
                 <div class="hm-field">
+                  <label class="hm-label" for="hm-exam-center">Exam centre name <span class="text-danger">*</span></label>
+                  <input class="hm-input" id="hm-exam-center" type="text" placeholder="Centre name from admit card" required />
+                  <span class="hm-help">As shown on your admit card.</span>
+                  <p class="text-danger small mt-1" id="hm-err-exam-center" hidden></p>
+                </div>
+              </div>
+              <!-- Row 2: Exam centre state · Exam centre district -->
+              <div class="col-sm-6">
+                <div class="hm-field">
                   <label class="hm-label" for="hm-exam-state">Exam centre state <span class="text-danger">*</span></label>
                   <select class="hm-select" id="hm-exam-state" required>
                     <option value="">Select state…</option>
@@ -131,7 +140,6 @@
                   <p class="text-danger small mt-1" id="hm-err-exam-state" hidden></p>
                 </div>
               </div>
-              <!-- Row 2: Exam centre district · Exam centre name -->
               <div class="col-sm-6">
                 <div class="hm-field">
                   <label class="hm-label" for="hm-exam-district">Exam centre district <span class="text-danger">*</span></label>
@@ -139,14 +147,6 @@
                     <option value="">Select state first…</option>
                   </select>
                   <p class="text-danger small mt-1" id="hm-err-exam-district" hidden></p>
-                </div>
-              </div>
-              <div class="col-sm-6">
-                <div class="hm-field">
-                  <label class="hm-label" for="hm-exam-center">Exam centre name <span class="text-danger">*</span></label>
-                  <input class="hm-input" id="hm-exam-center" type="text" placeholder="Centre name from admit card" required />
-                  <span class="hm-help">As shown on your admit card.</span>
-                  <p class="text-danger small mt-1" id="hm-err-exam-center" hidden></p>
                 </div>
               </div>
             </div>
