@@ -76,7 +76,7 @@ const SECTIONS = {
       },
       {
         key: 'exam_center', ddId: 'hm-kv-exam-center', type: 'text',
-        placeholder: 'Centre name from admit card', prompt: 'Add your exam centre',
+        placeholder: 'e.g. Tirupati Medical College', prompt: 'Add your exam centre',
       },
     ],
   },
