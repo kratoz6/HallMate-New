@@ -847,16 +847,26 @@ function esc(str) {
 
 // ─── Block ────────────────────────────────────────────────────────────────────
 
+const MIN_BLOCK_REASON_LEN = 5;
+
 function openBlockModal(userId) {
   const modal = document.getElementById('hm-block-modal');
   if (!modal) return;
   modal.dataset.targetUserId = userId;
+  // Reset textarea + disable submit each time the modal opens
+  const ta  = document.getElementById('hm-block-reason');
+  const btn = document.getElementById('hm-block-confirm');
+  if (ta)  ta.value = '';
+  if (btn) btn.disabled = true;
   modal.classList.add('is-open');
+  setTimeout(() => ta?.focus(), 60);
 }
 
 function wireBlockModal() {
   const modal = document.getElementById('hm-block-modal');
   if (!modal) return;
+  const ta  = document.getElementById('hm-block-reason');
+  const btn = document.getElementById('hm-block-confirm');
 
   document.getElementById('hm-block-cancel')
     ?.addEventListener('click', () => modal.classList.remove('is-open'));
@@ -865,21 +875,26 @@ function wireBlockModal() {
     if (e.target === modal) modal.classList.remove('is-open');
   });
 
-  document.getElementById('hm-block-confirm')
-    ?.addEventListener('click', async () => {
-      const userId = modal.dataset.targetUserId;
-      if (!userId) return;
-      const btn = document.getElementById('hm-block-confirm');
-      setButtonBusy(btn, true, 'Blocking…');
-      await doBlock(userId);
-      setButtonBusy(btn, false);
-      modal.classList.remove('is-open');
-    });
+  // Live validation: at least 5 non-whitespace characters
+  ta?.addEventListener('input', () => {
+    const valid = ta.value.trim().length >= MIN_BLOCK_REASON_LEN;
+    if (btn) btn.disabled = !valid;
+  });
+
+  btn?.addEventListener('click', async () => {
+    const userId = modal.dataset.targetUserId;
+    const reason = ta?.value.trim() || '';
+    if (!userId || reason.length < MIN_BLOCK_REASON_LEN) return;
+    setButtonBusy(btn, true, 'Blocking…');
+    await doBlock(userId, reason);
+    setButtonBusy(btn, false);
+    modal.classList.remove('is-open');
+  });
 }
 
-async function doBlock(userId) {
+async function doBlock(userId, reason) {
   if (!myUserId) return;
-  const { error } = await blockUser(myUserId, userId);
+  const { error } = await blockUser(myUserId, userId, reason);
   if (error) { toast(error.message || 'Could not block user.', { variant: 'danger' }); return; }
 
   blockedUserIds.add(userId);

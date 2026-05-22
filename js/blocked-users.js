@@ -51,10 +51,11 @@ async function loadBlocked() {
     const name = u?.full_name || 'Unknown user';
     const initials = name.split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase() || '?';
     const date = new Date(row.created_at).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' });
+    const reason = (row.reason || '').trim();
     return `
       <div class="hm-card hm-blocked-item" data-blocker="${esc(myUserId)}" data-blocked="${esc(row.blocked_user_id)}"
-           style="display:flex;align-items:center;gap:var(--hm-space-3);padding:var(--hm-space-4);">
-        <div class="hm-avatar hm-avatar--sm" style="background:var(--hm-surface-2);color:var(--hm-text-subtle);flex-shrink:0;" aria-hidden="true">
+           style="display:flex;align-items:flex-start;gap:var(--hm-space-3);padding:var(--hm-space-4);margin-bottom:var(--hm-space-3);">
+        <div class="hm-avatar hm-avatar--sm" style="background:var(--hm-surface-2);color:var(--hm-text-subtle);flex-shrink:0;margin-top:2px;" aria-hidden="true">
           ${esc(initials)}
         </div>
         <div style="flex:1;min-width:0;">
@@ -62,8 +63,9 @@ async function loadBlocked() {
             ${esc(name)}
           </p>
           <p style="margin:0;font-size:var(--hm-text-xs);color:var(--hm-text-muted);">Blocked ${esc(date)}</p>
+          ${reason ? `<p style="margin:6px 0 0;font-size:var(--hm-text-xs);color:var(--hm-text-subtle);font-style:italic;">"${esc(reason)}"</p>` : ''}
         </div>
-        <button class="hm-btn hm-btn--ghost hm-btn--sm hm-unblock-btn" type="button"
+        <button class="hm-btn hm-btn--ghost hm-btn--sm hm-unblock-btn flex-shrink-0" type="button"
                 data-blocked-id="${esc(row.blocked_user_id)}">
           Unblock
         </button>

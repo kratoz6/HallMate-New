@@ -141,20 +141,24 @@ export function getBlockedUserIds(userId) {
   );
 }
 
-/** Full block list with timestamps — for the Blocked Users management page. */
+/** Full block list with reason + timestamps — for the Blocked Users page. */
 export function getBlockedList(userId) {
   return query(
     from('blocked_users')
-      .select('id, blocked_user_id, created_at')
+      .select('id, blocked_user_id, reason, created_at')
       .eq('blocker_user_id', userId)
       .order('created_at', { ascending: false })
   );
 }
 
-export function blockUser(blockerUserId, blockedUserId) {
+export function blockUser(blockerUserId, blockedUserId, reason = null) {
   return query(
     from('blocked_users')
-      .insert({ blocker_user_id: blockerUserId, blocked_user_id: blockedUserId })
+      .insert({
+        blocker_user_id: blockerUserId,
+        blocked_user_id: blockedUserId,
+        reason: reason && String(reason).trim() ? String(reason).trim() : null,
+      })
       .select('id')
       .single()
   );

@@ -214,17 +214,33 @@
   <!-- Block user confirmation modal -->
   <div id="hm-block-modal" class="hm-modal-overlay"
        role="dialog" aria-modal="true" aria-labelledby="hm-block-modal-title">
-    <div class="hm-modal" style="max-width:360px;padding:var(--hm-space-5);">
-      <h3 id="hm-block-modal-title" style="margin:0 0 var(--hm-space-2);">Block this user?</h3>
-      <p class="hm-text-muted" style="margin:0 0 var(--hm-space-5);">
-        You won't see this HallMate again in Find&nbsp;Mates or Requests.
+    <div class="hm-modal" style="max-width:400px;padding:var(--hm-space-5);">
+      <h3 id="hm-block-modal-title" style="margin:0 0 var(--hm-space-2);">
+        Why are you blocking this HallMate?
+      </h3>
+      <p class="hm-text-muted" style="margin:0 0 var(--hm-space-4);font-size:var(--hm-text-sm);">
+        This helps us improve safety and prevent unwanted interactions.
       </p>
+
+      <textarea
+        id="hm-block-reason"
+        class="hm-textarea"
+        rows="3"
+        maxlength="500"
+        placeholder="e.g. Spam, fake profile, unwanted behavior, offensive messages…"
+        style="width:100%;resize:vertical;min-height:84px;"
+        aria-describedby="hm-block-reason-help"></textarea>
+      <p id="hm-block-reason-help" class="hm-text-subtle"
+         style="margin:6px 0 var(--hm-space-4);font-size:var(--hm-text-xs);">
+        Minimum 5 characters.
+      </p>
+
       <div class="d-flex gap-2 justify-content-end flex-wrap">
         <button type="button" class="hm-btn hm-btn--ghost hm-btn--sm"
                 id="hm-block-cancel">Cancel</button>
-        <button type="button" class="hm-btn hm-btn--sm" id="hm-block-confirm"
+        <button type="button" class="hm-btn hm-btn--sm" id="hm-block-confirm" disabled
                 style="background:var(--hm-danger);color:#fff;border-color:var(--hm-danger);">
-          Block
+          Submit &amp; Block
         </button>
       </div>
     </div>
