@@ -106,42 +106,94 @@
 .hm-card--interactive:hover .hm-mate__view,
 .hm-card--interactive:focus-visible .hm-mate__view { opacity: 1; }
 
-/* ── Card hierarchy: 4-row travel-intent layout ──────────────────────────── */
+/* ── Route-timeline card layout ───────────────────────────────────────────── */
 
-/* Row 1 — badges sit directly below name inside the head */
+/* Badges: gender + verified, directly below name */
 .hm-mate__badges {
   display: flex; flex-wrap: wrap; gap: 4px;
   margin-top: 4px;
 }
 
-/* Row 2 — home location: muted secondary context */
-.hm-mate__home {
-  font-size: var(--hm-text-xs);
-  color: var(--hm-text-subtle);
-  margin: 0;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+/* Route section: 3-column flex — icons | info | badges */
+.hm-mate__route-section {
+  display: flex;
+  gap: var(--hm-space-3);
+  align-items: stretch;
+  min-height: 88px;
 }
 
-/* Row 3 — exam centre name: primary travel-intent signal */
-.hm-mate__destination {
+/* Left column: icon bubbles connected by dashed line */
+.hm-mate__route-icons {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+}
+.hm-mate__icon-bubble {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  background: var(--hm-surface-2);
+  border: 1px solid var(--hm-border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 17px;
+  flex-shrink: 0;
+}
+.hm-mate__route-dashes {
+  flex: 1;
+  width: 2px;
+  min-height: 16px;
+  margin: 4px 0;
+  background: repeating-linear-gradient(
+    to bottom,
+    var(--hm-border-strong) 0,   var(--hm-border-strong) 4px,
+    transparent               4px, transparent               9px
+  );
+}
+
+/* Centre column: home location (top) → exam centre info (bottom) */
+.hm-mate__route-info {
+  flex: 1; min-width: 0;
+  display: flex; flex-direction: column; justify-content: space-between;
+}
+.hm-mate__from-loc {
   font-size: var(--hm-text-sm);
-  font-weight: 700;
-  color: var(--hm-text);
+  color: var(--hm-text-muted);
   margin: 0;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-
-/* Row 4 — exam district/state left, travel+stay chips right */
-.hm-mate__exam-row {
-  display: flex; align-items: center; gap: var(--hm-space-2);
+.hm-mate__centre-name {
+  font-size: var(--hm-text-base);
+  font-weight: 600;
+  color: var(--hm-text);
+  margin: 0 0 2px;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
-.hm-mate__exam-loc {
+.hm-mate__centre-loc {
   font-size: var(--hm-text-xs);
   color: var(--hm-text-muted);
-  margin: 0; flex: 1; min-width: 0;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  margin: 0;
 }
-.hm-mate__exam-row .hm-mate__chips { flex-shrink: 0; }
+
+/* Right column: travel + stay pill badges, vertically stacked */
+.hm-mate__travel-stack {
+  display: flex; flex-direction: column; gap: 6px;
+  flex-shrink: 0;
+}
+.hm-mate__travel-badge {
+  display: block;
+  padding: 4px 10px;
+  background: var(--hm-surface-2);
+  border: 1px solid var(--hm-border);
+  border-radius: var(--hm-radius-pill);
+  font-size: var(--hm-text-xs);
+  font-weight: 500;
+  color: var(--hm-text);
+  white-space: nowrap;
+  text-align: center;
+}
 
 /* ── Card enrichment: bio snippet + travel/stay chips ────────────────────── */
 /* Single-line bio snippet — truncates gracefully, never breaks card layout */

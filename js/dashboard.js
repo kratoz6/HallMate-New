@@ -507,22 +507,27 @@ function refreshCardCta(userId) {
 // ─── Card templates ───────────────────────────────────────────────────────────
 
 function mateCard(user, idx) {
-  const genderCls = { Female: 'hm-badge--info', Male: 'hm-badge--success' }[user.gender] || '';
-  const homeLoc   = [user.district, user.state].filter(Boolean).join(', ');
-  // Prefer exam_centre_* fields; fall back to home location for old users
-  const examLoc   = [
-    user.exam_centre_district || user.district,
-    user.exam_centre_state    || user.state,
-  ].filter(Boolean).join(', ');
-  const centre    = user.exam_center || '';
-  const chips     = travelChips(user.travel_mode, user.stay_plan);
+  const genderCls  = { Female: 'hm-badge--info', Male: 'hm-badge--success' }[user.gender] || '';
+
+  // Home location
+  const homeLoc    = [user.district, user.state].filter(Boolean).join(', ');
+
+  // Exam centre (with fallback for old users)
+  const centre     = user.exam_center || '';
+  const examDist   = user.exam_centre_district || user.district || '';
+  const examSt     = user.exam_centre_state    || user.state    || '';
+  const examLoc    = [examDist, examSt].filter(Boolean).join(', ');
+
+  // Right-column travel/stay badges use existing label maps
+  const travelLabel = user.travel_mode && TRAVEL_LABEL[user.travel_mode];
+  const stayLabel   = user.stay_plan   && STAY_LABEL[user.stay_plan];
 
   return `
     <article class="hm-card hm-mate hm-card--interactive"
       data-idx="${idx}" tabindex="0" role="button"
       aria-label="View ${esc(user.full_name)}'s profile">
 
-      <!-- Row 1: Avatar · Name · Gender + Verified badges -->
+      <!-- Identity row: avatar · name · gender + verified badges -->
       <div class="hm-mate__head">
         <div class="hm-avatar" style="background:${avatarColor(user.full_name)};color:#fff;" aria-hidden="true">${avatarInitials(user.full_name)}</div>
         <div style="min-width:0; flex:1;">
@@ -534,18 +539,33 @@ function mateCard(user, idx) {
         </div>
       </div>
 
-      <!-- Row 2: Home location — muted geographic origin -->
-      ${homeLoc ? `<p class="hm-mate__home">🏠 ${esc(homeLoc)}</p>` : ''}
+      <!-- Route timeline: [icon column] [location info] [travel badges] -->
+      <div class="hm-mate__route-section">
 
-      <!-- Row 3: Exam centre name — primary travel-intent visual -->
-      ${centre ? `<p class="hm-mate__destination">🛣️ ${esc(centre)}</p>` : ''}
+        <!-- Left: home bubble → dashed line → exam bubble -->
+        <div class="hm-mate__route-icons">
+          <div class="hm-mate__icon-bubble">🏠</div>
+          <div class="hm-mate__route-dashes"></div>
+          <div class="hm-mate__icon-bubble">📋</div>
+        </div>
 
-      <!-- Row 4: Exam district/state · travel+stay chips (right-aligned) -->
-      ${examLoc || chips ? `
-        <div class="hm-mate__exam-row">
-          ${examLoc ? `<p class="hm-mate__exam-loc">📍 ${esc(examLoc)}</p>` : '<span></span>'}
-          ${chips   ? `<div class="hm-mate__chips">${chips}</div>` : ''}
-        </div>` : ''}
+        <!-- Centre: home location (top) → exam centre info (bottom) -->
+        <div class="hm-mate__route-info">
+          <p class="hm-mate__from-loc">${esc(homeLoc || '—')}</p>
+          <div>
+            ${centre  ? `<p class="hm-mate__centre-name">${esc(centre)}</p>`    : ''}
+            ${examLoc ? `<p class="hm-mate__centre-loc">📍 ${esc(examLoc)}</p>` : ''}
+          </div>
+        </div>
+
+        <!-- Right: travel + stay pill badges (vertical stack) -->
+        ${travelLabel || stayLabel ? `
+          <div class="hm-mate__travel-stack">
+            ${travelLabel ? `<span class="hm-mate__travel-badge">${esc(travelLabel)}</span>` : ''}
+            ${stayLabel   ? `<span class="hm-mate__travel-badge">${esc(stayLabel)}</span>`   : ''}
+          </div>` : ''}
+
+      </div>
 
       <div class="hm-mate__footer">${cardFooterHtml(user)}</div>
     </article>`;
