@@ -2,7 +2,15 @@
   "permissions": {
     "allow": [
       "Bash(mkdir -p /Users/apple/HallMate/.claude && ls /Users/apple/HallMate/.claude/ 2>/dev/null)",
-      "mcp__Claude_Preview__preview_start"
+      "mcp__Claude_Preview__preview_start",
+      "Bash(grep -n 'hm-nav-cta\\\\|hm-nav-links__drawer\\\\|hm-nav-links__sep\\\\|hm-nav-links__action\\\\|hm-btn--xs\\\\|hm-brand__text\\\\|renderNavAuthState\\\\|$$\\\\|scroll.*hidden\\\\|overflow.*hidden' /Users/apple/HallMate/js/app.js /Users/apple/HallMate/js/ui.js /Users/apple/HallMate/css/components.css /Users/apple/HallMate/css/responsive.css /Users/apple/HallMate/components/navbar.html)",
+      "Bash(gh repo *)",
+      "Bash(git status *)",
+      "Bash(git branch *)",
+      "Bash(git push *)",
+      "Bash(gh pr *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)"
     ]
   }
 }

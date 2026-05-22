@@ -3,7 +3,7 @@
 
 export const APP = Object.freeze({
   name: 'HallMate',
-  tagline: 'Find your NEET PG exam centre mates',
+  tagline: 'Find your exam centre mates',
   version: '0.1.0',
   supportEmail: 'support@hallmate.in',
 });
