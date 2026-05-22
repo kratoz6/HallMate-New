@@ -1,7 +1,7 @@
 {
   "name": "hallmate",
   "version": "0.1.0",
-  "description": "HallMate — find your NEET PG exam centre mates.",
+  "description": "HallMate — find your exam centre mates.",
   "private": true,
   "type": "module",
   "scripts": {
