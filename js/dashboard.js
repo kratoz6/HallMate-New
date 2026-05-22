@@ -6,6 +6,7 @@ import { getAllUsers, getUserByPhone, getMyConnections,
 import { debounce } from './utils.js';
 import { toast, setButtonBusy } from './ui.js';
 import * as Relationships from './relationships.js';
+import { populateStateSelect, wireDistrictCascade } from './location-data.js';
 
 const { REL } = Relationships;
 
@@ -17,7 +18,7 @@ let myUserId        = null;
 
 const FILTERS = [
   { id: 'hm-filter-state',    key: 'state',       type: 'select' },
-  { id: 'hm-filter-district', key: 'district',    type: 'text'   },
+  { id: 'hm-filter-district', key: 'district',    type: 'select' },
   { id: 'hm-filter-center',   key: 'exam_center', type: 'text'   },
   { id: 'hm-filter-gender',   key: 'gender',      type: 'select' },
 ];
@@ -81,7 +82,13 @@ function applyFilters() {
   const keys   = Object.keys(active);
   const result = keys.length === 0
     ? allUsers
-    : allUsers.filter((u) => keys.every((k) => (u[k] || '').toLowerCase().includes(active[k])));
+    : allUsers.filter((u) => keys.every((k) => {
+        const field  = (u[k] || '').toLowerCase();
+        const filter = active[k];
+        const fdef   = FILTERS.find(f => f.key === k);
+        // Selects use exact match (normalised values); text fields use substring search
+        return fdef?.type === 'select' ? field === filter : field.includes(filter);
+      }));
 
   updateCount(result.length);
 
@@ -100,6 +107,17 @@ function wireFilters() {
       ?.addEventListener(type === 'text' ? 'input' : 'change', debouncedApply);
   });
 
+  // Populate state dropdown and wire cascading district from location-data
+  const stateEl    = document.getElementById('hm-filter-state');
+  const districtEl = document.getElementById('hm-filter-district');
+  if (stateEl && districtEl) {
+    populateStateSelect(stateEl, { defaultLabel: 'All states' });
+    wireDistrictCascade(stateEl, districtEl, {
+      filterMode:   true,
+      noStateLabel: 'All districts',
+    });
+  }
+
   document.getElementById('hm-filter-clear')?.addEventListener('click', clearFilters);
 
   document.getElementById('hm-refresh')?.addEventListener('click', async () => {
@@ -110,6 +128,8 @@ function wireFilters() {
 
 function clearFilters() {
   FILTERS.forEach(({ id }) => { const el = document.getElementById(id); if (el) el.value = ''; });
+  // Trigger cascade so district options reset to "All districts" when state is cleared
+  document.getElementById('hm-filter-state')?.dispatchEvent(new Event('change'));
   applyFilters();
 }
 

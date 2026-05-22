@@ -11,6 +11,7 @@ import { getProfileByPhone, upsertUser } from './supabase.js';
 import { formatPhonePretty }           from './utils.js';
 import { STORAGE_KEYS }                from './config.js';
 import { setButtonBusy }               from './ui.js';
+import { STATES, wireDistrictCascade } from './location-data.js';
 
 // ─── Module state ─────────────────────────────────────────────────────────────
 let profilePhone = '';   // Firebase E.164 phone number
@@ -19,14 +20,7 @@ let profileData  = {};   // Latest Supabase row; updated optimistically on save
 // ─── Option lists ─────────────────────────────────────────────────────────────
 const GENDER_OPTS = ['Female', 'Male', 'Prefer not to say'];
 
-const STATE_OPTS = [
-  'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
-  'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand', 'Karnataka',
-  'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur', 'Meghalaya', 'Mizoram',
-  'Nagaland', 'Odisha', 'Punjab', 'Rajasthan', 'Sikkim', 'Tamil Nadu',
-  'Telangana', 'Tripura', 'Uttar Pradesh', 'Uttarakhand', 'West Bengal',
-  'Delhi', 'Jammu & Kashmir', 'Ladakh', 'Chandigarh', 'Puducherry', 'Other',
-];
+// STATES imported from location-data.js — single source of truth for all 36 entries.
 
 const TRAVEL_OPTS = ['By train', 'By flight', 'By bus', 'Self-drive', 'Other'];
 
@@ -65,11 +59,12 @@ const SECTIONS = {
     fields: [
       {
         key: 'state', ddId: 'hm-kv-state', type: 'select',
-        options: STATE_OPTS, prompt: 'Add your state',
+        options: STATES, prompt: 'Add your state',
       },
       {
-        key: 'district', ddId: 'hm-kv-district', type: 'text',
-        placeholder: 'e.g. Coimbatore', prompt: 'Add your district',
+        // options: [] → populated dynamically by wireDistrictCascade after render
+        key: 'district', ddId: 'hm-kv-district', type: 'select',
+        options: [], prompt: 'Add your district',
       },
       {
         key: 'exam_center', ddId: 'hm-kv-exam-center', type: 'text',
@@ -216,6 +211,19 @@ function enterEditMode(sectionKey) {
     input.setAttribute('data-field-key', f.key);
     dd.appendChild(input);
   });
+
+  // ── Wire state → district cascade for the centre section ─────────────────
+  if (sectionKey === 'centre') {
+    const stateEl  = document.getElementById('hm-kv-state')?.querySelector('select');
+    const distEl   = document.getElementById('hm-kv-district')?.querySelector('select');
+    if (stateEl && distEl) {
+      // Populate district options for the current state (refresh(false) runs inside)
+      wireDistrictCascade(stateEl, distEl);
+      // Restore saved district value now that the options exist in the DOM
+      const savedDist = trimOrNull(profileData.district) || '';
+      if (savedDist) distEl.value = savedDist;
+    }
+  }
 
   article.classList.add('is-editing');
 }

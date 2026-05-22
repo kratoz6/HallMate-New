@@ -5,6 +5,7 @@ import { requireAuth } from './auth.js';
 import { upsertUser } from './supabase.js';
 import { setButtonBusy } from './ui.js';
 import { ROUTES } from './config.js';
+import { populateStateSelect, wireDistrictCascade } from './location-data.js';
 
 let firebaseUser = null;
 const collected = {};
@@ -12,6 +13,14 @@ const collected = {};
 async function init() {
   firebaseUser = await requireAuth();
   if (!firebaseUser) return;
+
+  // State → District cascade (elements are in DOM even while panel is hidden)
+  const stateEl    = document.getElementById('hm-state');
+  const districtEl = document.getElementById('hm-district');
+  if (stateEl && districtEl) {
+    populateStateSelect(stateEl);
+    wireDistrictCascade(stateEl, districtEl);
+  }
 
   // Step navigation via data-go-step buttons
   document.querySelectorAll('[data-go-step]').forEach((btn) => {
