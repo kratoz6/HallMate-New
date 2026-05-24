@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /dashboard.html
+Disallow: /profile.html
+Disallow: /onboarding.html
+Disallow: /connections.html
+Disallow: /blocked-users.html
+
+Sitemap: https://zenter.in/sitemap.xml
