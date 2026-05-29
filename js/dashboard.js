@@ -44,7 +44,13 @@ async function init() {
 
   const { data: me } = await getUserByPhone(firebaseUser.phoneNumber);
   myUserId   = me?.id        || null;
-  myExamType = me?.exam_type || 'NEET PG'; // legacy users default to NEET PG
+  myExamType = me?.exam_type || 'NEET UG'; // legacy users (null) treated as NEET UG
+
+  // Non-NEET UG exam types → maintenance page (product focus is NEET UG).
+  if (myExamType !== 'NEET UG') {
+    window.location.replace('/maintenance.html');
+    return;
+  }
 
   // Reflect the user's permanent exam type in the header label.
   const examLabel = document.getElementById('hm-exam-label');
