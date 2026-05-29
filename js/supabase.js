@@ -200,13 +200,14 @@ export function deleteConnectionsBetween(userIdA, userIdB) {
 
 /** Insert a feedback row. user_id, user_name, exam_type are all optional. */
 export function submitFeedback({ user_id = null, user_name = null, exam_type = null, feedback_message }) {
+  // Plain INSERT — no .select() to avoid needing a SELECT RLS policy.
   return query(
     from('feedbacks').insert({
       user_id,
       user_name,
       exam_type,
       feedback_message: String(feedback_message).trim(),
-    }).select('id').single()
+    })
   );
 }
 
