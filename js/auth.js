@@ -43,6 +43,8 @@ export async function handlePostLogin(firebaseUser) {
   try {
     const { data, error } = await getUserByPhone(firebaseUser.phoneNumber);
     const hasProfile = !error && data?.profile_completed === true;
+    // Cache so guards + navbar can read without an extra Supabase round-trip.
+    try { sessionStorage.setItem(STORAGE_KEYS.profileCompleted, String(hasProfile)); } catch {}
     const pending = sessionStorage.getItem(STORAGE_KEYS.redirectAfterLogin);
     const destination = hasProfile ? (pending || ROUTES.dashboard) : ROUTES.onboarding;
     sessionStorage.removeItem(STORAGE_KEYS.redirectAfterLogin);
@@ -56,7 +58,30 @@ export async function handlePostLogin(firebaseUser) {
 export async function logout(redirectTo = ROUTES.landing) {
   await signOut(auth);
   sessionStorage.removeItem(STORAGE_KEYS.authUser);
+  sessionStorage.removeItem(STORAGE_KEYS.profileCompleted);
   window.location.assign(redirectTo);
+}
+
+// Ensures both Firebase auth AND onboarding completion before granting access.
+// Uses a sessionStorage cache so most calls are instant (no extra Supabase fetch).
+// Falls back to a single getUserByPhone() when the cache is absent (e.g. after
+// a browser restart that clears sessionStorage).
+export async function requireOnboarded() {
+  const user = await requireAuth();
+  if (!user) return null;
+
+  const cached = sessionStorage.getItem(STORAGE_KEYS.profileCompleted);
+
+  if (cached === 'true')  return user;
+  if (cached === 'false') { window.location.replace(ROUTES.onboarding); return null; }
+
+  // Cache miss — fetch once and populate.
+  const { data } = await getUserByPhone(user.phoneNumber);
+  const completed = !!(data?.profile_completed);
+  try { sessionStorage.setItem(STORAGE_KEYS.profileCompleted, String(completed)); } catch {}
+
+  if (!completed) { window.location.replace(ROUTES.onboarding); return null; }
+  return user;
 }
 
 // Redirect to login when not authenticated. Saves intended destination.

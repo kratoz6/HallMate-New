@@ -36,23 +36,22 @@ export function from(table) {
 // Check if a user with this phone exists and whether profile is complete.
 export function getUserByPhone(phone) {
   return query(
-    from('users').select('id, profile_completed').eq('phone', phone).maybeSingle()
+    from('users')
+      .select('id, profile_completed, exam_type')
+      .eq('phone', phone)
+      .maybeSingle()
   );
 }
 
 // Fetch the full profile row for the current user (looked up by phone).
-// Returns { data: <row|null>, error }. Selects only the columns guaranteed by
-// the current onboarding schema; richer fields (home_city, college, etc.) are
-// merged in by the profile page from row[field] if the column exists on the
-// server — this keeps the helper resilient to forward-compat columns being
-// missing without throwing PGRST errors.
 export function getProfileByPhone(phone) {
   return query(
     from('users')
       .select(
         'id, phone, full_name, gender, state, district, ' +
-        'exam_centre_state, exam_centre_district, exam_center, ' +
-        'college, travel_mode, stay_plan, bio, profile_completed, created_at'
+        'exam_centre_state, exam_centre_district, exam_center, exam_type, ' +
+        'college, travel_mode, stay_plan, bio, ' +
+        'profile_completed, is_profile_paused, created_at'
       )
       .eq('phone', phone)
       .maybeSingle()
@@ -66,16 +65,47 @@ export function upsertUser(payload) {
   );
 }
 
-// Fetch all users with completed profiles for the dashboard feed.
-// Includes enrichment fields (travel_mode, stay_plan, bio) so cards can
-// show travel/stay context without a separate fetch.
-export function getAllUsers() {
+// Fetch all users with completed, non-paused profiles for the dashboard feed,
+// scoped to the requested exam ecosystem.
+//   - examType='NEET UG' (default / null): include 'NEET UG' AND legacy rows
+//     with null exam_type (users created before exam_type was introduced).
+//   - Any other examType: strict equality — segregates NEET PG etc.
+export function getAllUsers(examType = 'NEET UG') {
+  let q = from('users')
+    .select('id, full_name, gender, state, district, exam_centre_state, exam_centre_district, exam_center, phone, travel_mode, stay_plan, bio, exam_type, created_at')
+    .eq('profile_completed', true)
+    .or('is_profile_paused.is.null,is_profile_paused.eq.false');
+
+  if (!examType || examType === 'NEET UG') {
+    // Include legacy null-exam_type rows alongside explicit NEET UG rows.
+    q = q.or('exam_type.eq.NEET UG,exam_type.is.null');
+  } else {
+    q = q.eq('exam_type', examType);
+  }
+
+  return query(q.order('created_at', { ascending: false }));
+}
+
+// Set or clear the is_profile_paused flag for the current user.
+export function setPausedStatus(phone, paused) {
   return query(
     from('users')
-      .select('id, full_name, gender, state, district, exam_centre_state, exam_centre_district, exam_center, phone, travel_mode, stay_plan, bio, created_at')
-      .eq('profile_completed', true)
-      .order('created_at', { ascending: false })
+      .update({ is_profile_paused: paused })
+      .eq('phone', phone)
+      .select('id')
+      .single()
   );
+}
+
+// Delete all user data: connections first (FK), then the profile row itself.
+export async function deleteUserData(userId) {
+  const { error: connErr } = await query(
+    from('connections')
+      .delete()
+      .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)
+  );
+  if (connErr) return { error: connErr };
+  return query(from('users').delete().eq('id', userId));
 }
 
 // ─── Connection helpers ───────────────────────────────────────────────────────
@@ -83,7 +113,7 @@ export function getAllUsers() {
 export function getMyConnections(userId) {
   return query(
     from('connections')
-      .select('id, sender_id, receiver_id, status')
+      .select('id, sender_id, receiver_id, status, created_at, updated_at')
       .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)
       .in('status', ['pending', 'accepted', 'rejected'])
   );
@@ -112,6 +142,75 @@ export function getUsersByIds(ids) {
   );
 }
 
+// ─── Block helpers ────────────────────────────────────────────────────────────
+
+/** Returns { blocked_user_id }[] for every user blocked by userId. */
+export function getBlockedUserIds(userId) {
+  return query(
+    from('blocked_users')
+      .select('blocked_user_id')
+      .eq('blocker_user_id', userId)
+  );
+}
+
+/** Full block list with reason + timestamps — for the Blocked Users page. */
+export function getBlockedList(userId) {
+  return query(
+    from('blocked_users')
+      .select('id, blocked_user_id, reason, created_at')
+      .eq('blocker_user_id', userId)
+      .order('created_at', { ascending: false })
+  );
+}
+
+export function blockUser(blockerUserId, blockedUserId, reason = null) {
+  return query(
+    from('blocked_users')
+      .insert({
+        blocker_user_id: blockerUserId,
+        blocked_user_id: blockedUserId,
+        reason: reason && String(reason).trim() ? String(reason).trim() : null,
+      })
+      .select('id')
+      .single()
+  );
+}
+
+export function unblockUser(blockerUserId, blockedUserId) {
+  return query(
+    from('blocked_users')
+      .delete()
+      .eq('blocker_user_id', blockerUserId)
+      .eq('blocked_user_id', blockedUserId)
+  );
+}
+
+/** Deletes ALL connection rows between two users (either direction, any status).
+ *  Used by the block flow so the relationship disappears immediately. */
+export function deleteConnectionsBetween(userIdA, userIdB) {
+  return query(
+    from('connections')
+      .delete()
+      .in('sender_id',   [userIdA, userIdB])
+      .in('receiver_id', [userIdA, userIdB])
+  );
+}
+
+// ─── Feedback ────────────────────────────────────────────────────────────────
+
+/** Insert a feedback row. user_id, user_name, exam_type are all optional. */
+export function submitFeedback({ user_id = null, user_name = null, exam_type = null, feedback_message }) {
+  // Plain INSERT — no .select() to avoid needing a SELECT RLS policy.
+  return query(
+    from('feedbacks').insert({
+      user_id,
+      user_name,
+      exam_type,
+      feedback_message: String(feedback_message).trim(),
+    })
+  );
+}
+
 export function sendConnectionRequest(senderId, receiverId) {
   return query(
     from('connections')
@@ -124,7 +223,7 @@ export function sendConnectionRequest(senderId, receiverId) {
 export function respondToRequest(connectionId, status) {
   return query(
     from('connections')
-      .update({ status })
+      .update({ status, updated_at: new Date().toISOString() })
       .eq('id', connectionId)
       .select('id')
       .single()

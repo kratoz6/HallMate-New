@@ -1,7 +1,7 @@
 {
-  "name": "hallmate",
+  "name": "zenter",
   "version": "0.1.0",
-  "description": "HallMate — find your NEET PG exam centre mates.",
+  "description": "Zenter — find your exam centre mates.",
   "private": true,
   "type": "module",
   "scripts": {

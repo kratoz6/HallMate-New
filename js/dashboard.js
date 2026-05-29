@@ -1,8 +1,10 @@
 // HallMate — Dashboard: users feed + filtering + connection system + phone reveal.
 
-import { requireAuth } from './auth.js';
+import { requireOnboarded } from './auth.js';
 import { getAllUsers, getUserByPhone, getMyConnections,
-         sendConnectionRequest, respondToRequest, deleteRequest } from './supabase.js';
+         sendConnectionRequest, respondToRequest, deleteRequest,
+         getBlockedUserIds, blockUser,
+         deleteConnectionsBetween } from './supabase.js';
 import { debounce } from './utils.js';
 import { toast, setButtonBusy } from './ui.js';
 import * as Relationships from './relationships.js';
@@ -15,8 +17,10 @@ let displayedUsers  = [];
 let lastFocusedCard = null;
 let modalUser       = null;
 let myUserId        = null;
+let myExamType      = null;   // permanent — set during onboarding
 let firebaseUser    = null;   // stored for lazy connections load
 let connectionsLoaded = false;
+let blockedUserIds  = new Set(); // blocked_user_id values for the current user
 
 const FILTERS = [
   // fallback: old users who predate exam_centre_* columns still match via state/district
@@ -33,23 +37,41 @@ const AVATAR_COLORS = ['#FF6B35','#4F46E5','#10B981','#F59E0B','#8B5CF6','#06B6D
 // ─── Init ─────────────────────────────────────────────────────────────────────
 
 async function init() {
-  firebaseUser = await requireAuth();
+  firebaseUser = await requireOnboarded();
   if (!firebaseUser) return;
 
   wireTabs();
 
   const { data: me } = await getUserByPhone(firebaseUser.phoneNumber);
-  myUserId = me?.id || null;
+  myUserId   = me?.id        || null;
+  myExamType = me?.exam_type || 'NEET UG'; // legacy users (null) treated as NEET UG
+
+  // Non-NEET UG exam types → maintenance page (product focus is NEET UG).
+  if (myExamType !== 'NEET UG') {
+    window.location.replace('/maintenance.html');
+    return;
+  }
+
+  // Reflect the user's permanent exam type in the header label.
+  const examLabel = document.getElementById('hm-exam-label');
+  if (examLabel) examLabel.textContent = myExamType;
+
+  // Load blocked-user IDs up front so filtering is instant throughout the session.
+  if (myUserId) {
+    const { data: blocked } = await getBlockedUserIds(myUserId);
+    blockedUserIds = new Set((blocked || []).map(b => b.blocked_user_id));
+  }
 
   wireFilters();
   wireModal();
   wireConnectionActions();
+  wireBlockModal();
 
-  // Subscribe once — drives all incremental UI updates across cards, modal, banner.
+  // Subscribe once — drives all incremental UI updates across cards, modal, requests tab.
   Relationships.subscribe((changedUserId) => {
     refreshCardCta(changedUserId);
     renderModalActions();
-    renderIncomingRequests();
+    renderRequests();
     updateNavBadge();
   });
 
@@ -59,60 +81,69 @@ async function init() {
 async function loadData() {
   renderSkeletons();
   const [usersRes, connsRes] = await Promise.all([
-    getAllUsers(),
+    getAllUsers(myExamType),
     myUserId ? getMyConnections(myUserId) : Promise.resolve({ data: [], error: null }),
   ]);
 
   if (usersRes.error) { renderError(usersRes.error.message); return; }
 
   Relationships.hydrate(connsRes.data || [], myUserId);
-  allUsers = (usersRes.data || []).filter((u) => u.id !== myUserId);
+  allUsers = (usersRes.data || []).filter(
+    (u) => u.id !== myUserId && !blockedUserIds.has(u.id)
+  );
 
-  renderIncomingRequests();
+  renderRequests();
   updateNavBadge();
   applyFilters();
 }
 
 // ─── Tab switching ────────────────────────────────────────────────────────────
 
-function wireTabs() {
-  // Set initial tab from URL hash (e.g. /dashboard.html#connections)
-  const initialHash = location.hash.slice(1);
-  if (initialHash === 'connections') activateTab('connections');
+const VALID_TABS = ['requests', 'find-mates', 'connections'];
 
-  // Wire tab buttons inside the page
+function wireTabs() {
+  // Resolve starting tab from URL hash; default to 'find-mates'
+  const initialHash = location.hash.slice(1);
+  const startTab = VALID_TABS.includes(initialHash) ? initialHash : 'find-mates';
+  if (startTab !== 'find-mates') activateTab(startTab); // HTML already shows find-mates
+
   document.querySelectorAll('.hm-tab[data-tab]').forEach(btn => {
     btn.addEventListener('click', () => {
       const t = btn.dataset.tab;
       activateTab(t);
+      // 'find-mates' is the canonical default — no hash needed
       history.replaceState(null, '', t === 'find-mates' ? location.pathname : `#${t}`);
     });
   });
 
-  // Respond to hash changes triggered by clicking the nav-bar Connections link
-  // while already on dashboard.html (no page reload, just hash update).
+  // Respond to hash changes (e.g. nav-bar Connections link while on dashboard)
   window.addEventListener('hashchange', () => {
     const h = location.hash.slice(1);
-    activateTab(h === 'connections' ? 'connections' : 'find-mates');
+    activateTab(VALID_TABS.includes(h) ? h : 'find-mates');
   });
 }
 
 async function activateTab(name) {
-  const isConnections = name === 'connections';
+  const tab = VALID_TABS.includes(name) ? name : 'requests';
 
   document.querySelectorAll('.hm-tab[data-tab]').forEach(btn => {
-    const active = btn.dataset.tab === name;
+    const active = btn.dataset.tab === tab;
     btn.classList.toggle('is-active', active);
     btn.setAttribute('aria-selected', String(active));
   });
 
-  const findPanel = document.getElementById('hm-panel-find-mates');
-  const connPanel = document.getElementById('hm-panel-connections');
-  if (findPanel) findPanel.hidden = isConnections;
-  if (connPanel) connPanel.hidden = !isConnections;
+  const panels = {
+    'requests':    document.getElementById('hm-panel-requests'),
+    'find-mates':  document.getElementById('hm-panel-find-mates'),
+    'connections': document.getElementById('hm-panel-connections'),
+  };
+  Object.entries(panels).forEach(([key, el]) => { if (el) el.hidden = key !== tab; });
 
-  // Lazy-load connections on first activation
-  if (isConnections && !connectionsLoaded && firebaseUser) {
+  // Render Requests tab content (derived from in-memory data — no extra fetch)
+  if (tab === 'requests') renderRequests();
+
+  // Lazy-load Connections on first activation
+  if (tab === 'connections' && !connectionsLoaded && firebaseUser) {
     connectionsLoaded = true;
     const root = document.getElementById('hm-connections-root');
     if (root) {
@@ -227,6 +258,7 @@ function wireConnectionActions() {
     const connId = btn.dataset.connId || null;
 
     if (action === 'reveal') { doReveal(); return; }
+    if (action === 'block')  { openBlockModal(userId); return; }
 
     setButtonBusy(btn, true);
     try {
@@ -242,8 +274,15 @@ function wireConnectionActions() {
 
 // ─── Connection actions ───────────────────────────────────────────────────────
 
+// Single helper: notify any mounted Connections page that the user's
+// connection state changed and the 3-section layout should refresh.
+function notifyConnectionsChanged() {
+  window.dispatchEvent(new CustomEvent('hm:connections-changed'));
+}
+
 async function doConnect(userId) {
   if (!myUserId || !userId) return;
+  if (myUserId === userId) return; // prevent self-connection
   const existing = Relationships.get(userId);
   if (existing.status !== REL.NONE) return;
 
@@ -257,6 +296,8 @@ async function doConnect(userId) {
     return;
   }
   Relationships.set(userId, { status: REL.PENDING_OUT, role: 'sender', connectionId: data?.id });
+  connectionsLoaded = false;
+  notifyConnectionsChanged();
   toast('Request sent!', { variant: 'success' });
 }
 
@@ -264,19 +305,32 @@ async function doAccept(userId, connId) {
   const { error } = await respondToRequest(connId, 'accepted');
   if (error) { toast(error.message || 'Could not accept.', { variant: 'danger' }); return; }
   Relationships.set(userId, { status: REL.CONNECTED, role: 'receiver', connectionId: connId });
+  connectionsLoaded = false; // Connections tab re-fetches to include new contact
+  notifyConnectionsChanged();
   toast('Connected! You can now reveal their contact.', { variant: 'success' });
+
+  // Auto-navigate to the Connections tab so the user immediately sees the
+  // new contact. Works whether the accept came from a Requests card or
+  // from the profile modal (modal is closed first if open).
+  closeModal();
+  activateTab('connections');
 }
 
 async function doDecline(userId, connId) {
   const { error } = await respondToRequest(connId, 'rejected');
   if (error) { toast(error.message || 'Could not decline.', { variant: 'danger' }); return; }
   Relationships.set(userId, { status: REL.REJECTED, role: 'receiver', connectionId: connId });
+  connectionsLoaded = false;
+  notifyConnectionsChanged();
 }
 
 async function doWithdraw(userId, connId) {
   const { error } = await deleteRequest(connId);
   if (error) { toast(error.message || 'Could not withdraw.', { variant: 'danger' }); return; }
   Relationships.set(userId, { status: REL.NONE });
+  connectionsLoaded = false;
+  notifyConnectionsChanged();
+  toast('Request cancelled.', { variant: 'info' });
 }
 
 function doReveal() {
@@ -305,53 +359,126 @@ function doReveal() {
 function updateCount(n) {
   const el = document.getElementById('hm-results-count');
   if (!el) return;
-  el.textContent = allUsers.length === 0 ? '' : `${n} ${n === 1 ? 'HallMate' : 'HallMates'} found`;
+  el.textContent = allUsers.length === 0 ? '' : `${n} centre ${n === 1 ? 'mate' : 'mates'} found`;
 }
 
 function updateNavBadge() {
-  const badge = document.getElementById('hm-requests-badge');
-  if (!badge) return;
-  const n = Relationships.countIncomingPending();
-  badge.textContent = n;
-  badge.hidden = n === 0;
+  // Exclude blocked users from the pending-request count.
+  const n = Relationships.getIncomingPending()
+    .filter(({ userId }) => !blockedUserIds.has(userId))
+    .length;
+  const navBadge = document.getElementById('hm-requests-badge');
+  if (navBadge) { navBadge.textContent = n; navBadge.hidden = n === 0; }
+  const tabBadge = document.getElementById('hm-requests-tab-badge');
+  if (tabBadge) { tabBadge.textContent = n; tabBadge.hidden = n === 0; }
 }
 
-// ─── Incoming requests banner ─────────────────────────────────────────────────
+// ─── Requests tab ─────────────────────────────────────────────────────────────
 
-function renderIncomingRequests() {
-  const banner = document.getElementById('hm-requests-banner');
-  if (!banner) return;
+function renderRequests() {
+  const grid = document.getElementById('hm-requests-grid');
+  if (!grid) return;
 
-  const pending = Relationships.getIncomingPending();
-  if (pending.length === 0) { banner.hidden = true; banner.innerHTML = ''; return; }
+  const pending   = Relationships.getIncomingPending();
+  const userById  = new Map(allUsers.map((u) => [u.id, u]));
+  const items     = pending
+    .map(({ userId, connectionId }) => {
+      const u = userById.get(userId);
+      return u ? { user: u, connectionId } : null;
+    })
+    .filter(Boolean);
 
-  const userById = new Map(allUsers.map((u) => [u.id, u]));
-
-  const items = pending.map(({ userId, connectionId }) => {
-    const u = userById.get(userId);
-    if (!u) return '';
-    const color = avatarColor(u.full_name);
-    return `
-      <div class="hm-request-item">
-        <div class="hm-avatar" style="background:${color};color:#fff;flex-shrink:0;" aria-hidden="true">${avatarInitials(u.full_name)}</div>
-        <span class="hm-request-item__name">${esc(u.full_name)}</span>
-        <div class="hm-request-item__actions">
-          <button class="hm-btn hm-btn--primary hm-btn--sm"
-            data-conn-action="accept" data-user-id="${esc(userId)}" data-conn-id="${esc(connectionId)}">Accept</button>
-          <button class="hm-btn hm-btn--ghost hm-btn--sm"
-            data-conn-action="decline" data-user-id="${esc(userId)}" data-conn-id="${esc(connectionId)}">Decline</button>
-        </div>
+  if (items.length === 0) {
+    grid.innerHTML = `
+      <div class="hm-empty" style="grid-column:1/-1;">
+        <div class="hm-empty__icon" aria-hidden="true">🤝</div>
+        <h3>No pending requests</h3>
+        <p class="hm-text-muted">When HallMates send you connection requests, they'll appear here.</p>
       </div>`;
-  }).join('');
+    return;
+  }
 
-  banner.hidden = false;
-  banner.innerHTML = `
-    <div class="hm-requests-banner">
-      <p class="hm-requests-banner__title">
-        🔔 ${pending.length} pending ${pending.length === 1 ? 'request' : 'requests'}
-      </p>
-      <div class="hm-requests-banner__list">${items}</div>
-    </div>`;
+  grid.innerHTML = items.map(({ user, connectionId }) => requestCard(user, connectionId)).join('');
+}
+
+function requestCard(user, connectionId) {
+  const genderIcon = { Female: '♀', Male: '♂' }[user.gender] || '';
+  const genderCls  = { Female: 'hm-badge--female', Male: 'hm-badge--male' }[user.gender] || '';
+
+  const homeDistrict = user.district || '';
+  const homeState    = user.state    || '';
+  const homeLocHtml  = homeDistrict && homeState
+    ? `<strong>${esc(homeDistrict)}</strong><span class="hm-loc-state">, ${esc(homeState)}</span>`
+    : `<strong>${esc(homeDistrict || homeState || '—')}</strong>`;
+
+  const centre   = user.exam_center || '';
+  const examDist = user.exam_centre_district || user.district || '';
+  const examSt   = user.exam_centre_state    || user.state    || '';
+  const examLoc  = [examDist, examSt].filter(Boolean).join(', ');
+
+  const travelIcon  = user.travel_mode && TRAVEL_ICON[user.travel_mode];
+  const travelLabel = user.travel_mode && TRAVEL_LABEL[user.travel_mode];
+  const stayIcon    = user.stay_plan   && STAY_ICON[user.stay_plan];
+  const stayLabel   = user.stay_plan   && STAY_LABEL[user.stay_plan];
+  const hasBadges   = !!(travelLabel || stayLabel);
+
+  const uid = esc(user.id);
+  const cid = esc(connectionId);
+
+  return `
+    <article class="hm-card hm-mate" aria-label="Connection request from ${esc(user.full_name)}">
+
+      <div class="hm-mate__head">
+        <div class="hm-avatar hm-avatar--card"
+             style="background:${avatarColor(user.full_name)};color:#fff;"
+             aria-hidden="true">${avatarInitials(user.full_name)}</div>
+        <div class="hm-mate__head-info">
+          <p class="hm-mate__name">${esc(user.full_name)}</p>
+          <div class="hm-mate__badges">
+            ${user.gender ? `<span class="hm-badge ${genderCls}">${genderIcon} ${esc(user.gender)}</span>` : ''}
+            <span class="hm-badge hm-badge--verified">✓ Verified</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="hm-mate__body">
+        <div class="hm-mate__route-wrap">
+          <div class="hm-mate__route-track">
+            <div class="hm-mate__icon-bubble">🏠</div>
+            <div class="hm-mate__route-connector">
+              <div class="hm-mate__route-dot hm-mate__route-dot--top"></div>
+              <div class="hm-mate__route-dashes"></div>
+              <div class="hm-mate__route-dot hm-mate__route-dot--bottom"></div>
+            </div>
+            <div class="hm-mate__icon-bubble">📋</div>
+          </div>
+          <div class="hm-mate__route-info">
+            <p class="hm-mate__home-loc">${homeLocHtml}</p>
+            <div class="hm-mate__exam-info">
+              ${centre  ? `<p class="hm-mate__centre-name">${esc(centre)}</p>`    : ''}
+              ${examLoc ? `<p class="hm-mate__centre-loc">📍 ${esc(examLoc)}</p>` : ''}
+            </div>
+          </div>
+        </div>
+        ${hasBadges ? `<div class="hm-mate__v-divider"></div>` : ''}
+        ${hasBadges ? `
+          <div class="hm-mate__badge-cards">
+            ${travelLabel ? `<div class="hm-mate__badge-card"><span class="hm-mate__badge-icon">${esc(travelIcon)}</span><span class="hm-mate__badge-label">${esc(travelLabel)}</span></div>` : ''}
+            ${stayLabel   ? `<div class="hm-mate__badge-card"><span class="hm-mate__badge-icon">${esc(stayIcon)}</span><span class="hm-mate__badge-label">${esc(stayLabel)}</span></div>` : ''}
+          </div>` : ''}
+      </div>
+
+      <div class="hm-mate__footer">
+        <span class="hm-mate__joined">Joined ${formatDate(user.created_at)}</span>
+        <div class="d-flex gap-2 flex-shrink-0">
+          <button class="hm-btn hm-btn--ghost hm-btn--sm"
+            data-conn-action="decline" data-user-id="${uid}" data-conn-id="${cid}">Reject</button>
+          <button class="hm-btn hm-btn--primary hm-btn--sm"
+            data-conn-action="accept"  data-user-id="${uid}" data-conn-id="${cid}">Accept</button>
+        </div>
+      </div>
+
+    </article>`;
 }
 
 // ─── Modal ────────────────────────────────────────────────────────────────────
@@ -469,11 +596,11 @@ function renderEmpty(isFiltered) {
   setGrid(`
     <div class="hm-empty" style="grid-column:1/-1;">
       <div class="hm-empty__icon" aria-hidden="true">${isFiltered ? '🔍' : '🏛️'}</div>
-      <h3>${isFiltered ? 'No HallMates found' : 'No mates yet'}</h3>
+      <h3>${isFiltered ? 'No centre mates found' : 'No mates yet'}</h3>
       <p class="hm-text-muted">
         ${isFiltered
-          ? 'No HallMates match the selected filters. Try widening your search.'
-          : 'Be the first HallMate in your exam centre.'}
+          ? 'No centre mates match the selected filters. Try widening your search.'
+          : 'Be the first to join your exam centre.'}
       </p>
       ${isFiltered ? `<button class="hm-btn hm-btn--ghost hm-btn--sm" onclick="document.getElementById('hm-filter-clear').click()">Clear filters</button>` : ''}
     </div>`);
@@ -507,20 +634,29 @@ function refreshCardCta(userId) {
 // ─── Card templates ───────────────────────────────────────────────────────────
 
 function mateCard(user, idx) {
-  const genderCls  = { Female: 'hm-badge--info', Male: 'hm-badge--success' }[user.gender] || '';
+  // Gender: icon symbol + colour class
+  const genderIcon = { Female: '♀', Male: '♂' }[user.gender] || '';
+  const genderCls  = { Female: 'hm-badge--female', Male: 'hm-badge--male' }[user.gender] || '';
 
-  // Home location
-  const homeLoc    = [user.district, user.state].filter(Boolean).join(', ');
+  // Home location: district in bold, state in muted gray
+  const homeDistrict = user.district || '';
+  const homeState    = user.state    || '';
+  const homeLocHtml  = homeDistrict && homeState
+    ? `<strong>${esc(homeDistrict)}</strong><span class="hm-loc-state">, ${esc(homeState)}</span>`
+    : `<strong>${esc(homeDistrict || homeState || '—')}</strong>`;
 
-  // Exam centre (with fallback for old users)
-  const centre     = user.exam_center || '';
-  const examDist   = user.exam_centre_district || user.district || '';
-  const examSt     = user.exam_centre_state    || user.state    || '';
-  const examLoc    = [examDist, examSt].filter(Boolean).join(', ');
+  // Exam centre (with fallback for old users without exam_centre_* cols)
+  const centre   = user.exam_center || '';
+  const examDist = user.exam_centre_district || user.district || '';
+  const examSt   = user.exam_centre_state    || user.state    || '';
+  const examLoc  = [examDist, examSt].filter(Boolean).join(', ');
 
-  // Right-column travel/stay badges use existing label maps
+  // Right badge cards: separate icon from label
+  const travelIcon  = user.travel_mode && TRAVEL_ICON[user.travel_mode];
   const travelLabel = user.travel_mode && TRAVEL_LABEL[user.travel_mode];
+  const stayIcon    = user.stay_plan   && STAY_ICON[user.stay_plan];
   const stayLabel   = user.stay_plan   && STAY_LABEL[user.stay_plan];
+  const hasBadges   = !!(travelLabel || stayLabel);
 
   return `
     <article class="hm-card hm-mate hm-card--interactive"
@@ -529,44 +665,69 @@ function mateCard(user, idx) {
 
       <!-- Identity row: avatar · name · gender + verified badges -->
       <div class="hm-mate__head">
-        <div class="hm-avatar" style="background:${avatarColor(user.full_name)};color:#fff;" aria-hidden="true">${avatarInitials(user.full_name)}</div>
-        <div style="min-width:0; flex:1;">
+        <div class="hm-avatar hm-avatar--card"
+             style="background:${avatarColor(user.full_name)};color:#fff;"
+             aria-hidden="true">${avatarInitials(user.full_name)}</div>
+        <div class="hm-mate__head-info">
           <p class="hm-mate__name">${esc(user.full_name)}</p>
           <div class="hm-mate__badges">
-            ${user.gender ? `<span class="hm-badge ${genderCls}">${esc(user.gender)}</span>` : ''}
-            <span class="hm-badge hm-badge--success">✓ Verified</span>
+            ${user.gender
+              ? `<span class="hm-badge ${genderCls}">${genderIcon} ${esc(user.gender)}</span>`
+              : ''}
+            <span class="hm-badge hm-badge--verified">✓ Verified</span>
           </div>
         </div>
       </div>
 
-      <!-- Route timeline: [icon column] [location info] [travel badges] -->
-      <div class="hm-mate__route-section">
+      <!-- Body: route timeline (left) + divider + badge cards (right) -->
+      <div class="hm-mate__body">
 
-        <!-- Left: home bubble → dashed line → exam bubble -->
-        <div class="hm-mate__route-icons">
-          <div class="hm-mate__icon-bubble">🏠</div>
-          <div class="hm-mate__route-dashes"></div>
-          <div class="hm-mate__icon-bubble">📋</div>
-        </div>
+        <!-- Route wrap: icon track + location text column -->
+        <div class="hm-mate__route-wrap">
 
-        <!-- Centre: home location (top) → exam centre info (bottom) -->
-        <div class="hm-mate__route-info">
-          <p class="hm-mate__from-loc">${esc(homeLoc || '—')}</p>
-          <div>
-            ${centre  ? `<p class="hm-mate__centre-name">${esc(centre)}</p>`    : ''}
-            ${examLoc ? `<p class="hm-mate__centre-loc">📍 ${esc(examLoc)}</p>` : ''}
+          <!-- Icon track: home → dashed connector with dots → exam -->
+          <div class="hm-mate__route-track">
+            <div class="hm-mate__icon-bubble">🏠</div>
+            <div class="hm-mate__route-connector">
+              <div class="hm-mate__route-dot hm-mate__route-dot--top"></div>
+              <div class="hm-mate__route-dashes"></div>
+              <div class="hm-mate__route-dot hm-mate__route-dot--bottom"></div>
+            </div>
+            <div class="hm-mate__icon-bubble">📋</div>
           </div>
+
+          <!-- Text: home loc (top, beside home icon) ↔ exam info (bottom) -->
+          <div class="hm-mate__route-info">
+            <p class="hm-mate__home-loc">${homeLocHtml}</p>
+            <div class="hm-mate__exam-info">
+              ${centre  ? `<p class="hm-mate__centre-name">${esc(centre)}</p>`    : ''}
+              ${examLoc ? `<p class="hm-mate__centre-loc">📍 ${esc(examLoc)}</p>` : ''}
+            </div>
+          </div>
+
         </div>
 
-        <!-- Right: travel + stay pill badges (vertical stack) -->
-        ${travelLabel || stayLabel ? `
-          <div class="hm-mate__travel-stack">
-            ${travelLabel ? `<span class="hm-mate__travel-badge">${esc(travelLabel)}</span>` : ''}
-            ${stayLabel   ? `<span class="hm-mate__travel-badge">${esc(stayLabel)}</span>`   : ''}
+        <!-- Vertical dashed divider (only rendered when badges exist) -->
+        ${hasBadges ? `<div class="hm-mate__v-divider"></div>` : ''}
+
+        <!-- Badge cards: travel mode + stay plan -->
+        ${hasBadges ? `
+          <div class="hm-mate__badge-cards">
+            ${travelLabel ? `
+              <div class="hm-mate__badge-card">
+                <span class="hm-mate__badge-icon">${esc(travelIcon)}</span>
+                <span class="hm-mate__badge-label">${esc(travelLabel)}</span>
+              </div>` : ''}
+            ${stayLabel ? `
+              <div class="hm-mate__badge-card">
+                <span class="hm-mate__badge-icon">${esc(stayIcon)}</span>
+                <span class="hm-mate__badge-label">${esc(stayLabel)}</span>
+              </div>` : ''}
           </div>` : ''}
 
       </div>
 
+      <!-- Footer: join date · connection CTA -->
       <div class="hm-mate__footer">${cardFooterHtml(user)}</div>
     </article>`;
 }
@@ -656,38 +817,105 @@ function esc(str) {
     .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+// ─── Block ────────────────────────────────────────────────────────────────────
+
+const MIN_BLOCK_REASON_LEN = 5;
+
+function openBlockModal(userId) {
+  const modal = document.getElementById('hm-block-modal');
+  if (!modal) return;
+  modal.dataset.targetUserId = userId;
+  // Reset textarea + disable submit each time the modal opens
+  const ta  = document.getElementById('hm-block-reason');
+  const btn = document.getElementById('hm-block-confirm');
+  if (ta)  ta.value = '';
+  if (btn) btn.disabled = true;
+  modal.classList.add('is-open');
+  setTimeout(() => ta?.focus(), 60);
+}
+
+function wireBlockModal() {
+  const modal = document.getElementById('hm-block-modal');
+  if (!modal) return;
+  const ta  = document.getElementById('hm-block-reason');
+  const btn = document.getElementById('hm-block-confirm');
+
+  document.getElementById('hm-block-cancel')
+    ?.addEventListener('click', () => modal.classList.remove('is-open'));
+
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) modal.classList.remove('is-open');
+  });
+
+  // Live validation: at least 5 non-whitespace characters
+  ta?.addEventListener('input', () => {
+    const valid = ta.value.trim().length >= MIN_BLOCK_REASON_LEN;
+    if (btn) btn.disabled = !valid;
+  });
+
+  btn?.addEventListener('click', async () => {
+    const userId = modal.dataset.targetUserId;
+    const reason = ta?.value.trim() || '';
+    if (!userId || reason.length < MIN_BLOCK_REASON_LEN) return;
+    setButtonBusy(btn, true, 'Blocking…');
+    await doBlock(userId, reason);
+    setButtonBusy(btn, false);
+    modal.classList.remove('is-open');
+  });
+}
+
+async function doBlock(userId, reason) {
+  if (!myUserId) return;
+  const { error } = await blockUser(myUserId, userId, reason);
+  if (error) { toast(error.message || 'Could not block user.', { variant: 'danger' }); return; }
+
+  // Remove any existing connection rows (in either direction) so the blocked
+  // user disappears from Connections immediately and can't re-establish via
+  // a stale row. Errors here are non-fatal — the block itself succeeded.
+  await deleteConnectionsBetween(myUserId, userId).catch(() => {});
+
+  blockedUserIds.add(userId);
+  allUsers = allUsers.filter((u) => u.id !== userId);
+
+  applyFilters();
+  renderRequests();
+  updateNavBadge();
+  closeModal(); // close the profile modal if it was open
+
+  // Notify the Connections panel (if mounted) to drop this user's card.
+  window.dispatchEvent(new CustomEvent('hm:user-blocked', { detail: { userId } }));
+
+  toast('User blocked — they won\'t appear in Find Mates.', { variant: 'info' });
+}
+
 // ─── Enrichment helpers ───────────────────────────────────────────────────────
 
-// Maps stored values → emoji + short label for compact chip display.
+// Maps stored values → emoji icon + short label (split for badge-card layout).
+const TRAVEL_ICON = {
+  'By train':   '🚂',
+  'By flight':  '✈️',
+  'By bus':     '🚌',
+  'Self-drive': '🚗',
+  'Other':      '🚐',
+};
 const TRAVEL_LABEL = {
-  'By train':   '🚆 Train',
-  'By flight':  '✈️ Flight',
-  'By bus':     '🚌 Bus',
-  'Self-drive': '🚗 Self-drive',
-  'Other':      '🚗 Other',
+  'By train':   'Train',
+  'By flight':  'Flight',
+  'By bus':     'Bus',
+  'Self-drive': 'Self-drive',
+  'Other':      'Other',
+};
+const STAY_ICON = {
+  'Need accommodation':     '🏨',
+  'Have accommodation':     '🏠',
+  'Looking for room share': '🛏️',
+  'Other':                  '🏡',
 };
 const STAY_LABEL = {
-  'Need accommodation':    '🏨 Needs stay',
-  'Have accommodation':    '🏠 Has stay',
-  'Looking for room share': '🛏️ Room share',
-  'Other':                 '📦 Other',
+  'Need accommodation':     'Needs stay',
+  'Have accommodation':     'Has stay',
+  'Looking for room share': 'Room share',
+  'Other':                  'Other',
 };
-
-// Returns up to 2 chip spans (travel + stay), or empty string if both absent.
-function travelChips(travelMode, stayPlan) {
-  const chips = [];
-  if (travelMode && TRAVEL_LABEL[travelMode])
-    chips.push(`<span class="hm-chip hm-chip--sm">${esc(TRAVEL_LABEL[travelMode])}</span>`);
-  if (stayPlan && STAY_LABEL[stayPlan])
-    chips.push(`<span class="hm-chip hm-chip--sm">${esc(STAY_LABEL[stayPlan])}</span>`);
-  return chips.join('');
-}
-
-// Returns a single-line bio snippet truncated to maxLen chars.
-function bioSnippet(bio, maxLen = 60) {
-  if (!bio) return '';
-  const s = String(bio).trim();
-  return s.length > maxLen ? s.slice(0, maxLen - 1) + '…' : s;
-}
 
 document.addEventListener('DOMContentLoaded', init);

@@ -6,21 +6,25 @@
 //   2. Click "Save" → validate → upsertUser (Supabase) → re-render read view
 //   3. Click "Cancel" → restore read view from in-memory profileData (no fetch)
 
-import { requireAuth }                from './auth.js';
-import { getProfileByPhone, upsertUser } from './supabase.js';
-import { formatPhonePretty }           from './utils.js';
-import { STORAGE_KEYS }                from './config.js';
-import { setButtonBusy }               from './ui.js';
-import { STATES, wireDistrictCascade } from './location-data.js';
+import { requireOnboarded, logout }                    from './auth.js';
+import { getProfileByPhone, upsertUser,
+         setPausedStatus, deleteUserData }              from './supabase.js';
+import { formatPhonePretty }                           from './utils.js';
+import { STORAGE_KEYS, ROUTES }                        from './config.js';
+import { setButtonBusy, toast }                        from './ui.js';
+import { STATES, wireDistrictCascade }                 from './location-data.js';
 
 // ─── Module state ─────────────────────────────────────────────────────────────
 let profilePhone = '';   // Firebase E.164 phone number
 let profileData  = {};   // Latest Supabase row; updated optimistically on save
 
 // ─── Option lists ─────────────────────────────────────────────────────────────
-const GENDER_OPTS = ['Female', 'Male', 'Prefer not to say'];
+const GENDER_OPTS = ['Male', 'Female', 'Other'];
 
 // STATES imported from location-data.js — single source of truth for all 36 entries.
+
+// Exam type is permanent per account — set once during onboarding and not
+// editable from the profile page. Kept in the DB for filtering only.
 
 const TRAVEL_OPTS = ['By train', 'By flight', 'By bus', 'Self-drive', 'Other'];
 
@@ -60,17 +64,16 @@ const SECTIONS = {
       {
         key: 'exam_centre_state', ddId: 'hm-kv-exam-state', type: 'select',
         options: STATES, prompt: 'Add exam centre state',
-        fallback: 'state',     // show home state for old users without exam_centre_state
+        fallback: 'state',
       },
       {
-        // options: [] → populated dynamically by wireDistrictCascade after render
         key: 'exam_centre_district', ddId: 'hm-kv-exam-district', type: 'select',
         options: [], prompt: 'Add exam centre district',
-        fallback: 'district',  // show home district for old users without exam_centre_district
+        fallback: 'district',
       },
       {
         key: 'exam_center', ddId: 'hm-kv-exam-center', type: 'text',
-        placeholder: 'Centre name from admit card', prompt: 'Add your exam centre',
+        placeholder: 'e.g. Tirupati Medical College', prompt: 'Add your exam centre',
       },
     ],
   },
@@ -87,18 +90,13 @@ const SECTIONS = {
         key: 'stay_plan', ddId: 'hm-kv-stay', type: 'select',
         options: STAY_OPTS, prompt: 'Add your stay plan',
       },
-      {
-        key: 'bio', ddId: 'hm-kv-bio', type: 'textarea',
-        placeholder: 'Tell centre mates a little about yourself',
-        prompt: 'Add a short bio',
-      },
     ],
   },
 };
 
 // ─── Bootstrap ────────────────────────────────────────────────────────────────
 async function init() {
-  const firebaseUser = await requireAuth();
+  const firebaseUser = await requireOnboarded();
   if (!firebaseUser) return;
 
   profilePhone = firebaseUser.phoneNumber || '';
@@ -122,6 +120,16 @@ async function init() {
   profileData = data || {};
   hydrateAll();
   wireEditButtons();
+  wireAccountActions();
+
+  // Allow the navbar dropdown's "Pause profile" / "Delete account" deep-links
+  // (/profile.html#pause, /profile.html#delete) to open the existing modals.
+  const hash = (location.hash || '').slice(1).toLowerCase();
+  if (hash === 'pause')  document.getElementById('hm-pause-profile')?.click();
+  if (hash === 'delete') document.getElementById('hm-delete-account')?.click();
+  if (hash === 'pause' || hash === 'delete') {
+    history.replaceState(null, '', location.pathname);
+  }
 }
 
 // ─── Read-mode hydration ──────────────────────────────────────────────────────
@@ -412,7 +420,7 @@ function cacheInitials(name) {
     const initials = avatarInitials(name);
     sessionStorage.setItem(STORAGE_KEYS.profile, JSON.stringify({ initials }));
     const navAvatar = document.getElementById('hm-navbar-avatar');
-    if (navAvatar && initials !== 'HM') navAvatar.textContent = initials;
+    if (navAvatar && initials !== 'Z') navAvatar.textContent = initials;
   } catch { /* ignore — storage may be unavailable in private mode */ }
 }
 
@@ -424,8 +432,105 @@ function trimOrNull(v) {
 
 function avatarInitials(name) {
   const s = (name || '').trim();
-  if (!s) return 'HM';
+  if (!s) return 'Z';
   return s.split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase();
+}
+
+// ─── Account actions: pause + delete ─────────────────────────────────────────
+
+function openModal(id)  { document.getElementById(id)?.classList.add('is-open'); }
+function closeModal(id) { document.getElementById(id)?.classList.remove('is-open'); }
+
+/** Sync the Pause button label + paused notice with current profileData state. */
+function renderPauseState() {
+  const btn    = document.getElementById('hm-pause-profile');
+  const notice = document.getElementById('hm-paused-notice');
+  const paused = !!profileData.is_profile_paused;
+  if (btn)    btn.textContent = paused ? 'Reactivate profile' : 'Pause my profile';
+  if (notice) notice.hidden   = !paused;
+}
+
+function wireAccountActions() {
+  renderPauseState();
+
+  // ── Pause / Reactivate ────────────────────────────────────────────────────
+  document.getElementById('hm-pause-profile')?.addEventListener('click', () => {
+    if (profileData.is_profile_paused) {
+      // Reactivate: no confirmation needed — just a beneficial toggle
+      doPauseToggle(false);
+    } else {
+      openModal('hm-modal-pause');
+    }
+  });
+
+  document.getElementById('hm-modal-pause-cancel')
+    ?.addEventListener('click', () => closeModal('hm-modal-pause'));
+
+  document.getElementById('hm-modal-pause')
+    ?.addEventListener('click', e => {
+      if (e.target.id === 'hm-modal-pause') closeModal('hm-modal-pause');
+    });
+
+  document.getElementById('hm-modal-pause-confirm')
+    ?.addEventListener('click', async () => {
+      const btn = document.getElementById('hm-modal-pause-confirm');
+      setButtonBusy(btn, true, 'Pausing…');
+      await doPauseToggle(true);
+      setButtonBusy(btn, false);
+      closeModal('hm-modal-pause');
+    });
+
+  // ── Delete account ────────────────────────────────────────────────────────
+  document.getElementById('hm-delete-account')
+    ?.addEventListener('click', () => openModal('hm-modal-delete'));
+
+  document.getElementById('hm-modal-delete-cancel')
+    ?.addEventListener('click', () => closeModal('hm-modal-delete'));
+
+  document.getElementById('hm-modal-delete')
+    ?.addEventListener('click', e => {
+      if (e.target.id === 'hm-modal-delete') closeModal('hm-modal-delete');
+    });
+
+  document.getElementById('hm-modal-delete-confirm')
+    ?.addEventListener('click', async () => {
+      const btn = document.getElementById('hm-modal-delete-confirm');
+      setButtonBusy(btn, true, 'Deleting…');
+      await doDeleteAccount(btn);
+    });
+}
+
+async function doPauseToggle(pausing) {
+  const { error } = await setPausedStatus(profilePhone, pausing);
+  if (error) {
+    toast(error.message || 'Could not update profile. Please try again.', { variant: 'danger' });
+    return;
+  }
+  profileData.is_profile_paused = pausing;
+  renderPauseState();
+  toast(
+    pausing ? 'Profile paused — you\'re hidden from Find Mates.'
+            : 'Profile reactivated — you\'re visible again!',
+    { variant: pausing ? 'info' : 'success' }
+  );
+}
+
+async function doDeleteAccount(confirmBtn) {
+  if (!profileData.id) {
+    toast('Cannot delete — profile not loaded. Please refresh.', { variant: 'danger' });
+    setButtonBusy(confirmBtn, false);
+    return;
+  }
+
+  const { error } = await deleteUserData(profileData.id);
+  if (error) {
+    toast(error.message || 'Delete failed. Please try again.', { variant: 'danger' });
+    setButtonBusy(confirmBtn, false);
+    return;
+  }
+
+  // Sign out Firebase session then go to landing
+  await logout(ROUTES.landing);
 }
 
 document.addEventListener('DOMContentLoaded', init);

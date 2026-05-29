@@ -36,17 +36,17 @@ test.describe('Mobile — public pages have no horizontal overflow', () => {
 });
 
 test.describe('Mobile — navbar alignment', () => {
-  test('logged-out: logo left, Sign in right, hamburger right', async ({ page }) => {
+  test('logged-out: logo left, Sign in right (no hamburger)', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 800 });
     await page.goto('/index.html');
 
     const brand    = page.locator('#hm-brand-link');
     const signIn   = page.locator('.hm-nav-cta[data-auth="logged-out"] a');
-    const hamburger = page.locator('#hm-nav-toggle');
 
     await expect(brand).toBeVisible();
     await expect(signIn).toBeVisible();
-    await expect(hamburger).toBeVisible();
+    // Hamburger removed — confirm it no longer exists in the DOM.
+    await expect(page.locator('#hm-nav-toggle')).toHaveCount(0);
 
     // Sign in sits to the right of the logo
     const brandBox  = await brand.boundingBox();

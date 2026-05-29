@@ -2,8 +2,8 @@
 // Every page loads this single file. It mounts shared chrome, wires up nav state,
 // and dispatches to a page-specific initializer based on the current route.
 
-import { mountChrome, highlightActiveNav, $, $$, on } from './ui.js';
-import { whenReady, onAuthChange, logout, requireAuth, redirectIfAuthed } from './auth.js';
+import { mountChrome, highlightActiveNav, $, $$, on, toast } from './ui.js';
+import { whenReady, onAuthChange, getCurrentUser, logout, requireAuth, redirectIfAuthed } from './auth.js';
 import { currentRoute } from './utils.js';
 import { ROUTES, STORAGE_KEYS } from './config.js';
 
@@ -27,6 +27,7 @@ async function bootstrap() {
   await mountChrome();
   highlightActiveNav(route);
   wireGlobalNav();
+  wireBrandNavigation();
 
   // Reflect auth state into the navbar (login button <-> avatar/logout).
   onAuthChange(renderNavAuthState);
@@ -46,6 +47,78 @@ function wireGlobalNav() {
     e.preventDefault();
     logout().catch((err) => console.error('[app] logout failed', err));
   });
+
+  wireFeedbackModal();
+}
+
+// ─── Feedback modal ───────────────────────────────────────────────────────────
+
+function wireFeedbackModal() {
+  const overlay  = document.getElementById('hm-feedback-overlay');
+  const ta       = document.getElementById('hm-feedback-text');
+  const errEl    = document.getElementById('hm-feedback-err');
+  if (!overlay) return;
+
+  const openFeedback = () => {
+    if (ta)    ta.value = '';
+    if (errEl) errEl.hidden = true;
+    overlay.classList.add('is-open');
+    document.body.style.overflow = 'hidden';
+    setTimeout(() => ta?.focus(), 60);
+  };
+
+  const closeFeedback = () => {
+    overlay.classList.remove('is-open');
+    document.body.style.overflow = '';
+  };
+
+  // Open on Feedback button click
+  on(document, 'click', (e) => {
+    if (e.target.closest('[data-action="feedback"]')) { e.preventDefault(); openFeedback(); }
+  });
+
+  // Close on Cancel button or backdrop click
+  on(document, 'click', (e) => {
+    if (e.target.id === 'hm-feedback-cancel' || e.target === overlay) closeFeedback();
+  });
+
+  // Close on Escape
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && overlay.classList.contains('is-open')) closeFeedback();
+  });
+
+  // Submit
+  on(document, 'click', async (e) => {
+    if (e.target.id !== 'hm-feedback-submit') return;
+
+    const msg = (ta?.value || '').trim();
+    if (!msg) {
+      if (errEl) { errEl.textContent = 'Please enter your feedback.'; errEl.hidden = false; }
+      return;
+    }
+    if (errEl) errEl.hidden = true;
+
+    const btn = document.getElementById('hm-feedback-submit');
+    if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
+
+    try {
+      const { submitFeedback } = await import('./supabase.js');
+      const user = getCurrentUser();
+      const { error } = await submitFeedback({ feedback_message: msg });
+
+      if (error) {
+        if (errEl) { errEl.textContent = 'Could not submit. Please try again.'; errEl.hidden = false; }
+      } else {
+        closeFeedback();
+        toast('Thank you for your feedback! 😊', { variant: 'success' });
+      }
+    } catch (err) {
+      console.error('[feedback] submit error', err);
+      if (errEl) { errEl.textContent = 'Something went wrong. Please try again.'; errEl.hidden = false; }
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = 'Submit'; }
+    }
+  });
 }
 
 function renderNavAuthState(user) {
@@ -54,12 +127,44 @@ function renderNavAuthState(user) {
   $$('[data-auth="logged-out"]').forEach((el) => { el.hidden = !!user; });
   $$('[data-auth="logged-in"]').forEach((el) => { el.hidden = !user; });
 
-  // Auth-aware logo routing: logged-in → dashboard, logged-out → landing.
-  const brandLink = document.getElementById('hm-brand-link');
-  if (brandLink) brandLink.href = user ? ROUTES.dashboard : ROUTES.landing;
+  // Auth-aware logo routing: covers EVERY .hm-brand on the page
+  // (navbar + footer + any future surface). The click-time handler in
+  // wireBrandNavigation() is the race-safe primary; this href update keeps
+  // hover/middle-click/right-click behaviour correct for the right page.
+  const targetHref = user ? ROUTES.dashboard : ROUTES.landing;
+  $$('.hm-brand').forEach((el) => { el.href = targetHref; });
 
-  // Update navbar avatar initials from sessionStorage cache set by profile.js.
-  if (user) updateNavbarAvatar();
+  if (user) {
+    updateNavbarAvatar();
+
+    // Hide the profile avatar/dropdown during onboarding.
+    // handlePostLogin() writes 'false' before redirecting to onboarding, so this
+    // fires on the first render of every onboarding page without any extra fetch.
+    const navProfile = document.querySelector('.hm-nav-profile');
+    if (navProfile) {
+      const done = sessionStorage.getItem(STORAGE_KEYS.profileCompleted);
+      if (done === 'false') navProfile.hidden = true;
+    }
+  }
+}
+
+// Single source of truth for logo/brand clicks. Re-checks auth state at click
+// time so a click that lands BEFORE Firebase resolves never accidentally
+// routes a logged-in user to the public landing page.
+//
+// Modifier-clicks (cmd/ctrl/shift, middle-click) are passed through unmodified
+// so "open in new tab" still works — the href attribute is kept in sync by
+// renderNavAuthState() for that case.
+function wireBrandNavigation() {
+  document.addEventListener('click', (e) => {
+    const brand = e.target.closest('.hm-brand');
+    if (!brand) return;
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return;
+
+    e.preventDefault();
+    const isAuthed = !!getCurrentUser() || !!sessionStorage.getItem(STORAGE_KEYS.authUser);
+    window.location.href = isAuthed ? ROUTES.dashboard : ROUTES.landing;
+  });
 }
 
 // Reads cached initials written by profile.js (STORAGE_KEYS.profile) so the
@@ -78,9 +183,11 @@ function updateNavbarAvatar() {
 // --- Page initializers (shells) ----------------------------------------------
 
 async function initLanding() {
-  // Public marketing page — no auth required. Hook hero CTA into login flow.
-  const ctaPrimary = $('[data-cta="primary"]');
-  on(ctaPrimary, 'click', () => { window.location.href = ROUTES.login; });
+  // Public marketing page — no auth required. Hook ALL CTA buttons into login flow.
+  // Using $$ (querySelectorAll) so both hero + bottom-section CTAs are wired.
+  $$('[data-cta="primary"]').forEach((btn) => {
+    on(btn, 'click', () => { window.location.href = ROUTES.login; });
+  });
 }
 
 async function initLogin() {

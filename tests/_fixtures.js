@@ -1,18 +1,22 @@
 // HallMate — Shared Playwright fixtures.
 //
-// Extends the default `test` so every spec automatically runs with E2E mode
-// active. The init script runs BEFORE any page module loads, so when
-// firebase-config.js boots it sees window.__hm_e2e = true and sets
-// auth.settings.appVerificationDisabledForTesting = true — bypassing
-// reCAPTCHA for Firebase test phone numbers.
+// Sets window.__hm_e2e = true via addInitScript() so the flag is present
+// BEFORE any ES module (including firebase-config.js) evaluates. When
+// firebase-config.js sees the flag it enables appVerificationDisabledForTesting,
+// which lets Firebase accept fixed test OTPs without real SMS or reCAPTCHA.
 //
 // Usage in spec files:
 //   import { test, expect } from './_fixtures.js';
 
 import { test as base, expect } from '@playwright/test';
 
-// reCAPTCHA is disabled globally in firebase-config.js — no init script needed.
-export const test = base.extend({});
+export const test = base.extend({
+  // Inject the E2E flag into every page before any module runs.
+  page: async ({ page }, use) => {
+    await page.addInitScript(() => { window.__hm_e2e = true; });
+    await use(page);
+  },
+});
 
 export { expect };
 

@@ -2,66 +2,28 @@
   <div class="hm-container hm-navbar__inner">
 
     <!-- ── LEFT: Brand ────────────────────────────────────────────────────── -->
-    <a href="/index.html" class="hm-brand" id="hm-brand-link" aria-label="HallMate home">
-      <span class="hm-brand__mark">H</span>
-      <span class="hm-brand__text">HallMate</span>
+    <a href="/index.html" class="hm-brand" id="hm-brand-link" aria-label="Zenter home">
+      <span class="hm-brand__mark">Z</span>
+      <span class="hm-brand__text">Zenter</span>
     </a>
 
     <!--
-      ── CENTER: Nav links ──────────────────────────────────────────────────
-      Desktop  → inline, grid col 2. Logged-out items hidden on desktop via
-                 CSS (.hm-nav-links li[data-auth="logged-out"]{display:none})
-                 so the center is empty until the user logs in.
-      Mobile   → right-side 280px drawer (position:fixed, slides from right).
-      JS toggles hidden attr on data-auth items after Firebase resolves.
-    -->
-    <ul class="hm-nav-links" id="hm-nav-links" role="list">
-
-      <!-- Drawer header (mobile only — hidden on desktop via CSS) -->
-      <li class="hm-nav-links__header" aria-hidden="true">
-        <span class="hm-nav-links__header-label">Menu</span>
-        <button
-          class="hm-nav-links__close"
-          id="hm-drawer-close"
-          type="button"
-          aria-label="Close menu"
-        >✕</button>
-      </li>
-
-      <!-- ── Logged-OUT: only "How it works" (mobile drawer only).
-               Desktop hides all logged-out items via CSS. -->
-      <li data-auth="logged-out">
-        <a href="/index.html#how-it-works">How it works</a>
-      </li>
-
-      <!-- ── Utility links (drawer only, always visible regardless of auth) -->
-      <li class="hm-nav-links__sep hm-nav-links__drawer-item"></li>
-      <li class="hm-nav-links__drawer-item">
-        <a href="/contact.html" class="hm-nav-links__action">Contact us</a>
-      </li>
-
-    </ul>
-
-    <!--
       ── RIGHT: hm-nav-right ────────────────────────────────────────────────
-      Pinned to grid column 3 (1fr, justify-content:flex-end) on desktop.
-      Uses margin-left:auto on mobile flex layout.
-
       1. hm-nav-cta      — mobile-only; logged-out Sign in
-      2. hm-nav-actions  — desktop-only; logged-out Sign in (right-pinned)
+      2. hm-nav-actions  — desktop-only; logged-out Sign in
       3. hm-nav-profile  — all viewports; logged-in avatar + dropdown
-      4. hm-nav-toggle   — mobile-only; hamburger
+         (all secondary actions live in this dropdown — no hamburger menu)
     -->
     <div class="hm-nav-right">
 
       <!-- 1. Mobile CTA (logged-out, always visible on mobile) -->
       <div class="hm-nav-cta" data-auth="logged-out">
-        <a href="/login.html" class="hm-btn hm-btn--primary hm-btn--xs">Sign in</a>
+        <a href="/login.html" class="hm-btn hm-btn--primary hm-btn--xs" style="white-space:nowrap;">Signup / Login</a>
       </div>
 
       <!-- 2. Desktop CTA (logged-out, hidden on mobile) -->
       <div class="hm-nav-actions" data-auth="logged-out">
-        <a href="/login.html" class="hm-btn hm-btn--primary hm-btn--sm">Sign in</a>
+        <a href="/login.html" class="hm-btn hm-btn--primary hm-btn--sm" style="white-space:nowrap;">Signup / Login</a>
       </div>
 
       <!-- 3. Logged-in avatar + dropdown (all viewports) -->
@@ -80,7 +42,14 @@
 
         <ul class="hm-nav-profile__dropdown" id="hm-avatar-dropdown" role="menu">
           <li role="none">
-            <a href="/profile.html" class="hm-nav-profile__item" role="menuitem">My Profile</a>
+            <a href="/profile.html" class="hm-nav-profile__item" role="menuitem">Profile</a>
+          </li>
+          <li role="none">
+            <a href="/contact.html" class="hm-nav-profile__item" role="menuitem">Contact us</a>
+          </li>
+          <li role="none">
+            <button type="button" class="hm-nav-profile__item" role="menuitem"
+                    data-action="feedback">Feedback</button>
           </li>
           <li role="none">
             <button
@@ -93,19 +62,26 @@
         </ul>
       </div>
 
-      <!-- 4. Hamburger (mobile only) -->
-      <button
-        class="hm-nav-toggle"
-        type="button"
-        id="hm-nav-toggle"
-        aria-controls="hm-nav-links"
-        aria-expanded="false"
-        aria-label="Open menu"
-      >
-        <span></span>
-      </button>
-
     </div><!-- /.hm-nav-right -->
 
   </div><!-- /.hm-navbar__inner -->
 </nav>
+
+<!-- ── Feedback modal — wired by app.js; loaded on every page via navbar ── -->
+<div id="hm-feedback-overlay" class="hm-feedback-overlay"
+     role="dialog" aria-modal="true" aria-labelledby="hm-feedback-title">
+  <div class="hm-feedback-box">
+    <h3 id="hm-feedback-title">😊 We'd love your feedback</h3>
+    <p class="hm-feedback-sub">Help us improve Zenter — your thoughts go directly to the team.</p>
+    <textarea id="hm-feedback-text" class="hm-textarea hm-feedback-ta"
+              rows="4" maxlength="1000"
+              placeholder="Share your thoughts, suggestions or issues…"></textarea>
+    <p id="hm-feedback-err" class="text-danger small mt-1" hidden></p>
+    <div class="hm-feedback-actions">
+      <button type="button" class="hm-btn hm-btn--ghost hm-btn--sm"
+              id="hm-feedback-cancel">Cancel</button>
+      <button type="button" class="hm-btn hm-btn--primary hm-btn--sm"
+              id="hm-feedback-submit">Submit</button>
+    </div>
+  </div>
+</div>

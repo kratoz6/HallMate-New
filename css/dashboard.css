@@ -1,5 +1,49 @@
 /* HallMate — Dashboard + profile page styling. */
 
+/* ── Connection 3-section layout ─────────────────────────────────────────── */
+.hm-conn-section { margin-bottom: var(--hm-space-7); }
+.hm-conn-section:last-child { margin-bottom: 0; }
+
+.hm-conn-section__header {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--hm-border);
+  padding-bottom: var(--hm-space-3);
+  margin-bottom: var(--hm-space-4);
+}
+
+.hm-conn-section__title {
+  font-size: var(--hm-text-lg);
+  font-weight: 700;
+  color: var(--hm-text);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--hm-space-2);
+  flex: 1;
+}
+
+.hm-conn-section__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  background: var(--hm-primary-100);
+  color: var(--hm-primary);
+  border-radius: var(--hm-radius-pill);
+  font-size: var(--hm-text-xs);
+  font-weight: 700;
+  padding: 0 6px;
+}
+
+.hm-conn-section__empty {
+  padding: var(--hm-space-4) 0;
+  font-size: var(--hm-text-sm);
+  font-style: italic;
+  color: var(--hm-text-muted);
+}
+
 /* ── Dashboard tab bar ─────────────────────────────────────────────────────── */
 .hm-tabs {
   display: flex;
@@ -81,163 +125,144 @@
   display: flex; flex-direction: column;
   gap: var(--hm-space-3);
 }
-.hm-mate__head   { display: flex; align-items: center; gap: var(--hm-space-3); }
-.hm-mate__name   { font-weight: 600; font-size: var(--hm-text-base); color: var(--hm-text); margin: 0; }
-.hm-mate__sub    { font-size: var(--hm-text-sm); color: var(--hm-text-subtle); margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.hm-mate__meta   { display: flex; flex-wrap: wrap; gap: 8px; }
-.hm-mate__actions { display: flex; gap: var(--hm-space-2); margin-top: var(--hm-space-2); }
-.hm-mate__center {
-  font-size: var(--hm-text-sm); color: var(--hm-text-muted);
-  margin: 0;
+
+/* Header: avatar + name + badges, bottom rule */
+.hm-mate__head {
+  display: flex; align-items: center; gap: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--hm-border);
+}
+
+/* Card avatar — 44 px circle */
+.hm-avatar--card {
+  width: 44px; height: 44px;
+  font-size: 18px; font-weight: 700;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+
+.hm-mate__head-info { min-width: 0; flex: 1; }
+
+.hm-mate__name {
+  font-size: 16px; font-weight: 700;
+  color: var(--hm-text); margin: 0 0 4px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+
+/* Badges: gender + verified */
+.hm-mate__badges  { display: flex; flex-wrap: wrap; gap: 6px; }
+.hm-badge--female { background: #f3e8ff; color: #7c3aed; border: 1px solid #ddd6fe; }
+.hm-badge--male   { background: #dbeafe; color: #1d4ed8; border: 1px solid #bfdbfe; }
+.hm-badge--verified { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
+
 .hm-mate__footer {
   display: flex; justify-content: space-between; align-items: center;
   margin-top: auto; padding-top: var(--hm-space-3);
   border-top: 1px solid var(--hm-border);
 }
 .hm-mate__joined { font-size: var(--hm-text-xs); color: var(--hm-text-subtle); }
-.hm-mate__view   {
-  font-size: var(--hm-text-xs); font-weight: 600;
-  color: var(--hm-primary);
-  opacity: 0;
-  transition: opacity var(--hm-duration-fast) var(--hm-ease);
-}
-.hm-card--interactive:hover .hm-mate__view,
-.hm-card--interactive:focus-visible .hm-mate__view { opacity: 1; }
 
-/* ── Route-timeline card layout ───────────────────────────────────────────── */
+/* ── Route-timeline body (reference design) ─────────────────────────────── */
 
-/* Badges: gender + verified, directly below name */
-.hm-mate__badges {
-  display: flex; flex-wrap: wrap; gap: 4px;
-  margin-top: 4px;
-}
-
-/* Route section: 3-column flex — icons | info | badges */
-.hm-mate__route-section {
+/* Body: route wrap + optional vertical divider + optional badge cards */
+.hm-mate__body {
   display: flex;
-  gap: var(--hm-space-3);
+  gap: 10px;
   align-items: stretch;
   min-height: 88px;
 }
 
-/* Left column: icon bubbles connected by dashed line */
-.hm-mate__route-icons {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+/* Route wrap: icon track (left) + text column (right) */
+.hm-mate__route-wrap {
+  display: flex; gap: 10px;
+  flex: 1; min-width: 0;
+  align-items: stretch;
+}
+
+/* Left: home icon → connector → exam icon */
+.hm-mate__route-track {
+  display: flex; flex-direction: column; align-items: center;
   flex-shrink: 0;
 }
+
 .hm-mate__icon-bubble {
   width: 36px; height: 36px;
   border-radius: 50%;
-  background: var(--hm-surface-2);
-  border: 1px solid var(--hm-border);
+  background: var(--hm-surface);
+  border: 1.5px solid var(--hm-border);
   display: flex; align-items: center; justify-content: center;
-  font-size: 17px;
-  flex-shrink: 0;
+  font-size: 17px; flex-shrink: 0;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.07);
 }
-.hm-mate__route-dashes {
+
+/* Connector between the two icon bubbles */
+.hm-mate__route-connector {
   flex: 1;
-  width: 2px;
-  min-height: 16px;
-  margin: 4px 0;
+  display: flex; flex-direction: column; align-items: center;
+  padding: 3px 0; min-height: 18px;
+}
+
+.hm-mate__route-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%; flex-shrink: 0;
+}
+.hm-mate__route-dot--top    { background: #1e293b; }
+.hm-mate__route-dot--bottom { background: #ef4444; }
+
+.hm-mate__route-dashes {
+  flex: 1; width: 2px; margin: 3px 0;
   background: repeating-linear-gradient(
     to bottom,
-    var(--hm-border-strong) 0,   var(--hm-border-strong) 4px,
-    transparent               4px, transparent               9px
+    #94a3b8 0, #94a3b8 4px,
+    transparent 4px, transparent 9px
   );
 }
 
-/* Centre column: home location (top) → exam centre info (bottom) */
+/* Text column: home loc (top, aligns with home icon) ↔ exam info (bottom) */
 .hm-mate__route-info {
   flex: 1; min-width: 0;
   display: flex; flex-direction: column; justify-content: space-between;
 }
-.hm-mate__from-loc {
-  font-size: var(--hm-text-sm);
-  color: var(--hm-text-muted);
-  margin: 0;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
+
+.hm-mate__home-loc { font-size: 13px; color: var(--hm-text); margin: 2px 0 0; }
+.hm-loc-state      { color: var(--hm-text-muted); font-weight: 400; }
+
+.hm-mate__exam-info { margin-bottom: 2px; }
+
 .hm-mate__centre-name {
-  font-size: var(--hm-text-base);
-  font-weight: 600;
-  color: var(--hm-text);
-  margin: 0 0 2px;
+  font-size: 13px; font-weight: 700;
+  color: var(--hm-text); margin: 0 0 1px;
   overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
 }
-.hm-mate__centre-loc {
-  font-size: var(--hm-text-xs);
-  color: var(--hm-text-muted);
-  margin: 0;
+.hm-mate__centre-loc { font-size: 11px; color: var(--hm-text-muted); margin: 0; }
+
+/* Vertical dashed divider between route and badge cards */
+.hm-mate__v-divider {
+  width: 1px; flex-shrink: 0; align-self: stretch;
+  background: repeating-linear-gradient(
+    to bottom,
+    var(--hm-border) 0, var(--hm-border) 4px,
+    transparent 4px, transparent 9px
+  );
 }
 
-/* Right column: travel + stay pill badges, vertically stacked */
-.hm-mate__travel-stack {
+/* Badge cards — right column, icon + label in a bordered rounded box */
+.hm-mate__badge-cards {
   display: flex; flex-direction: column; gap: 6px;
-  flex-shrink: 0;
+  flex-shrink: 0; justify-content: center;
 }
-.hm-mate__travel-badge {
-  display: block;
-  padding: 4px 10px;
-  background: var(--hm-surface-2);
+.hm-mate__badge-card {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--hm-surface);
   border: 1px solid var(--hm-border);
-  border-radius: var(--hm-radius-pill);
-  font-size: var(--hm-text-xs);
-  font-weight: 500;
-  color: var(--hm-text);
-  white-space: nowrap;
-  text-align: center;
+  border-radius: 10px;
+  padding: 6px 10px;
+  min-width: 82px;
 }
-
-/* ── Card enrichment: bio snippet + travel/stay chips ────────────────────── */
-/* Single-line bio snippet — truncates gracefully, never breaks card layout */
-/* Travel route: home district → exam district */
-.hm-mate__route {
-  font-size: var(--hm-text-sm);
-  font-weight: 600;
-  color: var(--hm-primary);
-  margin: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.hm-mate__bio {
-  font-size: var(--hm-text-xs);
-  color: var(--hm-text-muted);
-  margin: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  line-height: 1.4;
-}
-/* Chip row for travel_mode + stay_plan */
-.hm-mate__chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin: 0;
-}
-/* Compact chip size for card context (smaller than the landing-page chips) */
-.hm-chip--sm {
-  padding: 3px 9px;
-  font-size: var(--hm-text-xs);
-  gap: 4px;
-}
-
-/* Exam centre chip — slightly wider chip variant. */
-.hm-chip--center {
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
+.hm-mate__badge-icon  { font-size: 15px; line-height: 1; flex-shrink: 0; }
+.hm-mate__badge-label { font-size: 11px; font-weight: 500; color: var(--hm-text); white-space: nowrap; }
 
 /* ============================================================
    PROFILE MODAL
@@ -389,6 +414,24 @@
   gap: var(--hm-space-2);
   margin-bottom: var(--hm-space-3);
 }
+
+/* Block row — subtly separated from primary actions */
+.hm-modal__block-row {
+  border-top: 1px solid var(--hm-border);
+  padding-top: var(--hm-space-3);
+  margin-top: var(--hm-space-2);
+}
+.hm-modal__block-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: var(--hm-text-xs);
+  color: var(--hm-danger);
+  cursor: pointer;
+  opacity: 0.8;
+  transition: opacity var(--hm-duration-fast) var(--hm-ease);
+}
+.hm-modal__block-btn:hover { opacity: 1; }
 
 /* ── Revealed contact ── */
 .hm-contact-revealed {

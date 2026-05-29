@@ -4,8 +4,10 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#FF6B35" />
-  <title>My profile — HallMate</title>
-  <meta name="description" content="Manage your HallMate profile, exam centre, and connection preferences." />
+  <title>My profile — Zenter</title>
+  <meta name="description" content="Manage your Zenter profile, exam centre, and connection preferences." />
+  <meta name="robots" content="noindex, nofollow" />
+  <link rel="canonical" href="https://zenter.in/profile.html" />
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -44,6 +46,15 @@
             <p class="hm-profile-card__name" id="hm-profile-name">Your name</p>
             <p class="hm-profile-card__phone" id="hm-profile-phone">+91 ••••• •••••</p>
             <span class="hm-badge hm-badge--success">Phone verified</span>
+
+            <!-- Paused notice — shown when profile is hidden from Find Mates -->
+            <div id="hm-paused-notice" hidden
+                 style="margin-top:var(--hm-space-3);padding:8px 12px;
+                        background:#fef3c7;border:1px solid #fde68a;
+                        border-radius:var(--hm-radius-md);
+                        font-size:var(--hm-text-xs);color:#92400e;text-align:left;">
+              ⏸ Your profile is paused and hidden from Find&nbsp;Mates.
+            </div>
 
             <!-- Single edit control for entire profile -->
             <button type="button" class="hm-btn hm-btn--primary hm-btn--sm hm-btn--block"
@@ -91,7 +102,6 @@
             <dl class="hm-kv">
               <dt>Travel mode</dt> <dd id="hm-kv-travel">—</dd>
               <dt>Stay plan</dt>   <dd id="hm-kv-stay">—</dd>
-              <dt>Bio</dt>         <dd id="hm-kv-bio">—</dd>
             </dl>
           </article>
 
@@ -105,9 +115,12 @@
               <strong>both of you</strong> accept the connection.
             </p>
             <div class="d-flex flex-wrap gap-2 mt-3">
-              <button type="button" class="hm-btn hm-btn--ghost">Pause my profile</button>
-              <button type="button" class="hm-btn hm-btn--ghost"
-                      style="color:var(--hm-danger);border-color:#fecaca;">Delete account</button>
+              <a href="/blocked-users.html" class="hm-btn hm-btn--ghost hm-btn--sm">
+                🚫 Blocked users
+              </a>
+              <button type="button" class="hm-btn hm-btn--ghost hm-btn--sm" id="hm-pause-profile">
+                Pause my profile
+              </button>
             </div>
           </article>
 
@@ -117,6 +130,44 @@
   </main>
 
   <div data-include="footer"></div>
+
+  <!-- ── Pause profile confirmation ─────────────────────────────────────── -->
+  <div id="hm-modal-pause" class="hm-modal-overlay"
+       role="dialog" aria-modal="true" aria-labelledby="hm-modal-pause-title">
+    <div class="hm-modal" style="max-width:380px;padding:var(--hm-space-5);">
+      <h3 id="hm-modal-pause-title" style="margin:0 0 var(--hm-space-2);">Pause your profile?</h3>
+      <p class="hm-text-muted" style="margin:0 0 var(--hm-space-5);">
+        Your profile will be hidden from Find&nbsp;Mates until you reactivate it.
+      </p>
+      <div class="d-flex gap-2 justify-content-end flex-wrap">
+        <button type="button" class="hm-btn hm-btn--ghost hm-btn--sm"
+                id="hm-modal-pause-cancel">Cancel</button>
+        <button type="button" class="hm-btn hm-btn--primary hm-btn--sm"
+                id="hm-modal-pause-confirm">Pause profile</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Delete account confirmation ─────────────────────────────────────── -->
+  <div id="hm-modal-delete" class="hm-modal-overlay"
+       role="dialog" aria-modal="true" aria-labelledby="hm-modal-delete-title">
+    <div class="hm-modal" style="max-width:380px;padding:var(--hm-space-5);">
+      <h3 id="hm-modal-delete-title"
+          style="margin:0 0 var(--hm-space-2);color:var(--hm-danger);">Delete your account?</h3>
+      <p class="hm-text-muted" style="margin:0 0 var(--hm-space-5);">
+        This permanently deletes your Zenter profile and connections.
+        This action cannot be undone.
+      </p>
+      <div class="d-flex gap-2 justify-content-end flex-wrap">
+        <button type="button" class="hm-btn hm-btn--ghost hm-btn--sm"
+                id="hm-modal-delete-cancel">Cancel</button>
+        <button type="button" class="hm-btn hm-btn--sm" id="hm-modal-delete-confirm"
+                style="background:var(--hm-danger);color:#fff;border-color:var(--hm-danger);">
+          Delete permanently
+        </button>
+      </div>
+    </div>
+  </div>
 
   <script type="module" src="/js/app.js"></script>
   <script type="module" src="/js/profile.js"></script>

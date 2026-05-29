@@ -4,8 +4,10 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#FF6B35" />
-  <title>Find centre mates — HallMate</title>
-  <meta name="description" content="Discover NEET PG students assigned to your exam centre and connect with them." />
+  <title>Find centre mates — Zenter</title>
+  <meta name="description" content="Discover NEET UG students assigned to your exam centre and connect with them." />
+  <meta name="robots" content="noindex, nofollow" />
+  <link rel="canonical" href="https://zenter.in/dashboard.html" />
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -27,8 +29,17 @@
 
       <!-- Dashboard tab bar -->
       <div class="hm-tabs" role="tablist" aria-label="Dashboard sections">
+        <button class="hm-tab" role="tab" data-tab="requests" aria-selected="false">
+          Requests
+          <span id="hm-requests-tab-badge" class="hm-nav-badge" hidden aria-live="polite">0</span>
+        </button>
         <button class="hm-tab is-active" role="tab" data-tab="find-mates" aria-selected="true">Find Mates</button>
         <button class="hm-tab" role="tab" data-tab="connections" aria-selected="false">Connections</button>
+      </div>
+
+      <!-- ── Requests panel ─────────────────────────────────────────────── -->
+      <div id="hm-panel-requests" hidden>
+        <div class="hm-grid-cards" id="hm-requests-grid"></div>
       </div>
 
       <!-- ── Find Mates panel ────────────────────────────────────────────── -->
@@ -36,8 +47,9 @@
 
       <header class="hm-feed-header">
         <div>
-          <span class="hm-eyebrow">NEET PG 2026</span>
-          <h1 style="margin-top: 12px;">Find HallMates</h1>
+          <!-- Exam type — fixed per account (set during onboarding) -->
+          <span class="hm-eyebrow" id="hm-exam-label">NEET UG</span>
+          <h1 style="margin-top: 12px;">Find centre mates</h1>
           <p class="hm-text-muted">
             Students registered at the same exam centre.
             <span id="hm-results-count" class="hm-results-count"></span>
@@ -48,9 +60,6 @@
           <button class="hm-btn hm-btn--primary hm-btn--sm" type="button" id="hm-refresh">Refresh</button>
         </div>
       </header>
-
-      <!-- Incoming connection requests — hidden when empty -->
-      <div id="hm-requests-banner" hidden></div>
 
       <section class="hm-dashboard">
 
@@ -93,7 +102,7 @@
         </aside>
 
         <!-- MATE FEED -->
-        <section aria-label="HallMate list" aria-live="polite">
+        <section aria-label="Centre mate list" aria-live="polite">
 
           <!-- Quick filters: Travel mode + Stay plan (client-side only) -->
           <div class="row g-2 mb-3">
@@ -184,6 +193,41 @@
         <p class="hm-modal__privacy" id="hm-modal-privacy">
           🔒 Full number visible only after mutual connection.
         </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Block user confirmation modal -->
+  <div id="hm-block-modal" class="hm-modal-overlay"
+       role="dialog" aria-modal="true" aria-labelledby="hm-block-modal-title">
+    <div class="hm-modal" style="max-width:400px;padding:var(--hm-space-5);">
+      <h3 id="hm-block-modal-title" style="margin:0 0 var(--hm-space-2);">
+        Why are you blocking this user?
+      </h3>
+      <p class="hm-text-muted" style="margin:0 0 var(--hm-space-4);font-size:var(--hm-text-sm);">
+        This helps us improve safety and prevent unwanted interactions.
+      </p>
+
+      <textarea
+        id="hm-block-reason"
+        class="hm-textarea"
+        rows="3"
+        maxlength="500"
+        placeholder="e.g. Spam, fake profile, unwanted behavior, offensive messages…"
+        style="width:100%;resize:vertical;min-height:84px;"
+        aria-describedby="hm-block-reason-help"></textarea>
+      <p id="hm-block-reason-help" class="hm-text-subtle"
+         style="margin:6px 0 var(--hm-space-4);font-size:var(--hm-text-xs);">
+        Minimum 5 characters.
+      </p>
+
+      <div class="d-flex gap-2 justify-content-end flex-wrap">
+        <button type="button" class="hm-btn hm-btn--ghost hm-btn--sm"
+                id="hm-block-cancel">Cancel</button>
+        <button type="button" class="hm-btn hm-btn--sm" id="hm-block-confirm" disabled
+                style="background:var(--hm-danger);color:#fff;border-color:var(--hm-danger);">
+          Submit &amp; Block
+        </button>
       </div>
     </div>
   </div>

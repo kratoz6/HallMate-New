@@ -1,5 +1,34 @@
 /* HallMate — Reusable component library: buttons, cards, forms, badges, navbar, footer, toasts, loaders. */
 
+/* ── Feedback modal ─────────────────────────────────────────────────────────
+   Loaded on every page via navbar component — must not depend on dashboard.css */
+.hm-feedback-overlay {
+  display: none;
+  position: fixed; inset: 0; z-index: 1060;
+  background: rgba(15, 23, 42, 0.52);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  align-items: center; justify-content: center;
+  padding: var(--hm-space-4);
+}
+.hm-feedback-overlay.is-open { display: flex; }
+
+.hm-feedback-box {
+  width: 100%; max-width: 400px;
+  background: var(--hm-surface);
+  border: 1px solid var(--hm-border);
+  border-radius: var(--hm-radius-xl);
+  box-shadow: var(--hm-shadow-lg);
+  padding: var(--hm-space-5);
+}
+.hm-feedback-box h3  { margin: 0 0 var(--hm-space-2); font-size: var(--hm-text-xl); }
+.hm-feedback-sub     { margin: 0 0 var(--hm-space-4); font-size: var(--hm-text-sm); color: var(--hm-text-muted); }
+.hm-feedback-ta      { width: 100%; resize: vertical; min-height: 100px; }
+.hm-feedback-actions {
+  display: flex; gap: var(--hm-space-2); justify-content: flex-end;
+  flex-wrap: wrap; margin-top: var(--hm-space-4);
+}
+
 /* ============================================================
    NAVBAR
 ============================================================ */
@@ -551,3 +580,75 @@
   border-radius: var(--hm-radius-sm);
 }
 @keyframes hm-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+/* ── Exam category selector (landing page) ────────────────────────────────── */
+
+/* Wrapper: pull it flush with the bottom of the page's top padding */
+.hm-exam-selector-wrap {
+  padding-bottom: var(--hm-space-2);
+}
+
+/* Pill row: centered on desktop, horizontally scrollable on mobile */
+.hm-exam-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--hm-space-2);
+  justify-content: center;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* Individual exam pill */
+.hm-exam-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 18px;
+  border-radius: var(--hm-radius-pill);
+  border: 1.5px solid var(--hm-border);
+  background: var(--hm-surface);
+  color: var(--hm-text-muted);
+  font-size: var(--hm-text-sm);
+  font-weight: 600;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background var(--hm-duration-fast) var(--hm-ease),
+              border-color var(--hm-duration-fast) var(--hm-ease),
+              color var(--hm-duration-fast) var(--hm-ease);
+}
+.hm-exam-pill:hover {
+  background: var(--hm-primary-100);
+  border-color: var(--hm-primary);
+  color: var(--hm-primary);
+  text-decoration: none;
+}
+.hm-exam-pill:focus-visible {
+  outline: 2px solid var(--hm-primary);
+  outline-offset: 2px;
+}
+
+/* Active pill — HallMate orange, for the currently supported exam */
+.hm-exam-pill--active {
+  background: var(--hm-primary);
+  border-color: var(--hm-primary);
+  color: #fff;
+}
+.hm-exam-pill--active:hover {
+  background: var(--hm-primary-600);
+  border-color: var(--hm-primary-600);
+  color: #fff;
+}
+
+/* Mobile: switch to a single scrollable row to prevent wrapping/overflow */
+@media (max-width: 479px) {
+  .hm-exam-selector {
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-bottom: 4px; /* breathing room above scroll shadow */
+  }
+  .hm-exam-selector::-webkit-scrollbar { display: none; }
+}

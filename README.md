@@ -1,4 +1,10 @@
-# HallMate
+# Zenter
+
+> **Branding migration note:** `main` is the active **Zenter** app. The prior
+> HallMate prototype is preserved untouched on the `hallmate-prototype` branch
+> (`git checkout hallmate-prototype` to inspect / run the original brand).
+> Internals (CSS prefixes `hm-`, storage keys `hm.*`, Firebase project, Supabase
+> schema) are intentionally unchanged — only user-visible branding moved.
 
 Find your NEET PG exam centre mates. Coordinate travel, share stays, walk in together — safely.
 

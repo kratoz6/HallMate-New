@@ -2,11 +2,11 @@
 // All cross-cutting constants live here so other modules stay environment-agnostic.
 
 export const APP = Object.freeze({
-  name: 'HallMate',
+  name: 'Zenter',
   tagline: 'Find your exam centre mates',
   version: '0.1.0',
-  supportEmail: 'support@hallmate.in',
-  supportPhone: '+91 94429 46876',
+  supportEmail: 'support@zenter.in',
+  supportPhone: '+91 6363613007',
 });
 
 // Public Supabase project credentials. Anon key is safe to ship to the browser
@@ -39,6 +39,7 @@ export const STORAGE_KEYS = Object.freeze({
   authUser: 'hm.auth.user',
   profile: 'hm.profile',
   redirectAfterLogin: 'hm.auth.redirect',
+  profileCompleted: 'hm.profile.completed', // 'true' | 'false' — set after login / onboarding
 });
 
 export const FEATURE_FLAGS = Object.freeze({

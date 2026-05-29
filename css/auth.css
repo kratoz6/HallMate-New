@@ -77,5 +77,15 @@
   text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600;
 }
 
-/* reCAPTCHA is disabled — container kept in HTML but hidden. */
-#hm-recaptcha-container { display: none; }
+/* reCAPTCHA: TEMPORARY DEBUG — visible (size:'normal') mode.
+   Container sits in-flow above the Send OTP button; the Google widget
+   renders inline at its native ~304x78px after Firebase calls verify().
+   Center it for clean alignment within the auth card.
+   When reverting to invisible mode, restore the 0x0 absolute styling. */
+#hm-recaptcha-container {
+  display: flex;
+  justify-content: center;
+  margin: var(--hm-space-4) 0;
+  min-height: 0; /* avoid pre-render reserved space */
+}
+.grecaptcha-badge { visibility: hidden !important; }

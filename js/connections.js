@@ -1,41 +1,45 @@
-// HallMate — Connections page.
-// Fetches accepted connections for the signed-in user, resolves the partner
-// profile for each, and renders contact cards with WhatsApp + Call CTAs.
+// HallMate — Connections page (3-section relationship hub).
 //
-// Query flow:
-//   1. requireAuth()  → Firebase user → phone
-//   2. getProfileByPhone(phone) → current user's Supabase row (need the uuid)
-//   3. getAcceptedConnections(userId) → rows where sender|receiver = me, status='accepted'
-//   4. Derive otherIds = [ the side that is NOT me ] (deduplicated)
-//   5. getUsersByIds(otherIds) → batch fetch partner profiles in one query
-//   6. Render cards (name · location · exam centre · phone · WhatsApp · Call)
+// Sections:
+//   1. Received requests  — pending where receiver=me   (Accept / Reject)
+//   2. Sent requests      — pending where sender=me     (Cancel)
+//   3. Connected          — accepted connections        (Contact + Block)
+//
+// Refresh strategy:
+//   The page listens for two window events fired by dashboard.js:
+//     'hm:connections-changed' → any accept/decline/withdraw/connect →
+//                                  full re-render of the 3 sections
+//     'hm:user-blocked'        → drop a single card by data-conn-card-id
+//
+// Phone numbers are NEVER rendered for received/sent cards — only for
+// accepted connections (status === 'accepted').
 
-import { requireAuth }           from './auth.js';
+import { requireOnboarded }      from './auth.js';
 import {
   getProfileByPhone,
-  getAcceptedConnections,
+  getMyConnections,
   getUsersByIds,
+  getBlockedUserIds,
 }                                from './supabase.js';
 import { formatPhonePretty }     from './utils.js';
 
-// ─── Bootstrap ────────────────────────────────────────────────────────────────
+// ─── Bootstrap (standalone /connections.html path) ─────────────────────────
 
 async function init() {
-  const firebaseUser = await requireAuth();
+  const firebaseUser = await requireOnboarded(); // enforces profile completion
   if (!firebaseUser) return;
-
   const root = document.getElementById('hm-connections-root');
   if (!root) return;
-
   await runConnections(root, firebaseUser);
 }
 
-// ─── Public entry-point ───────────────────────────────────────────────────────
-// Called by dashboard.js when the Connections tab is first activated.
-// Accepts an already-resolved firebaseUser so no second requireAuth() is needed.
+// ─── Public entry-point ────────────────────────────────────────────────────
+// Called by dashboard.js when the Connections tab activates.
 
 export async function runConnections(root, firebaseUser) {
   setLoading(root);
+  wireBlockedListenerOnce(root);
+  wireConnectionsChangedListenerOnce(root, firebaseUser);
 
   const { data: me, error: meErr } = await getProfileByPhone(firebaseUser.phoneNumber);
   if (meErr || !me) {
@@ -43,37 +47,95 @@ export async function runConnections(root, firebaseUser) {
     return;
   }
 
-  const { data: connections, error: connErr } = await getAcceptedConnections(me.id);
-  if (connErr) {
-    renderError(root, connErr.message || 'Could not load connections.');
+  // Non-NEET UG users are redirected to maintenance (product focus is NEET UG).
+  // Legacy users with null exam_type are treated as NEET UG.
+  if (me.exam_type && me.exam_type !== 'NEET UG') {
+    window.location.replace('/maintenance.html');
     return;
   }
 
-  if (!connections || connections.length === 0) {
-    renderEmpty(root);
+  const [connsRes, blockedRes] = await Promise.all([
+    getMyConnections(me.id),
+    getBlockedUserIds(me.id),
+  ]);
+  if (connsRes.error) {
+    renderError(root, connsRes.error.message || 'Could not load connections.');
     return;
   }
 
-  const otherIds = [...new Set(
-    connections.map(c => c.sender_id === me.id ? c.receiver_id : c.sender_id)
-  )];
+  // Filter out blocked users from all sections.
+  const blockedSet = new Set((blockedRes.data || []).map(b => b.blocked_user_id));
+  const allConns = (connsRes.data || []).filter(c => {
+    const other = c.sender_id === me.id ? c.receiver_id : c.sender_id;
+    return !blockedSet.has(other);
+  });
 
-  const { data: partners, error: partnersErr } = await getUsersByIds(otherIds);
-  if (partnersErr || !partners) {
-    renderError(root, 'Could not load connection profiles.');
-    return;
+  // Partition into the 3 sections.
+  const received = allConns.filter(c => c.status === 'pending'  && c.receiver_id === me.id);
+  const sent     = allConns.filter(c => c.status === 'pending'  && c.sender_id   === me.id);
+  const accepted = allConns.filter(c => c.status === 'accepted');
+
+  // Fetch profile data for all unique other-users across all sections.
+  const otherIds = [...new Set([
+    ...received.map(c => c.sender_id),
+    ...sent.map(c => c.receiver_id),
+    ...accepted.map(c => c.sender_id === me.id ? c.receiver_id : c.sender_id),
+  ])];
+
+  let byId = {};
+  if (otherIds.length > 0) {
+    const { data: users } = await getUsersByIds(otherIds);
+    byId = Object.fromEntries((users || []).map(u => [u.id, u]));
   }
 
-  if (partners.length === 0) {
-    renderEmpty(root);
-    return;
-  }
-
-  const byId = Object.fromEntries(partners.map(u => [u.id, u]));
-  renderConnections(root, otherIds, byId);
+  root.innerHTML = `
+    ${renderSection({
+      title: 'Received requests', icon: '🤝',
+      count: received.length,
+      empty: 'No pending requests.',
+      cards: received.map(c => receivedCard(byId[c.sender_id], c)),
+    })}
+    ${renderSection({
+      title: 'Sent requests', icon: '📤',
+      count: sent.length,
+      empty: 'No pending sent requests.',
+      cards: sent.map(c => sentCard(byId[c.receiver_id], c)),
+    })}
+    ${renderSection({
+      title: 'Connected', icon: '🔗',
+      count: accepted.length,
+      empty: 'You have not connected with anyone yet.',
+      cards: accepted.map(c => {
+        const otherId = c.sender_id === me.id ? c.receiver_id : c.sender_id;
+        return connectedCard(byId[otherId], c);
+      }),
+    })}
+  `;
 }
 
-// ─── Render helpers ───────────────────────────────────────────────────────────
+// ─── Event wiring (idempotent) ─────────────────────────────────────────────
+
+let blockListenerWired = false;
+function wireBlockedListenerOnce(root) {
+  if (blockListenerWired) return;
+  blockListenerWired = true;
+  window.addEventListener('hm:user-blocked', (e) => {
+    const id = e.detail?.userId;
+    if (!id) return;
+    root.querySelectorAll(`[data-conn-card-id="${id}"]`).forEach(c => c.remove());
+  });
+}
+
+let connsChangedListenerWired = false;
+function wireConnectionsChangedListenerOnce(root, firebaseUser) {
+  if (connsChangedListenerWired) return;
+  connsChangedListenerWired = true;
+  window.addEventListener('hm:connections-changed', () => {
+    runConnections(root, firebaseUser);
+  });
+}
+
+// ─── Render helpers ─────────────────────────────────────────────────────────
 
 function setLoading(root) {
   root.innerHTML = `
@@ -83,44 +145,132 @@ function setLoading(root) {
     </div>`;
 }
 
-function renderEmpty(root) {
-  root.innerHTML = `
-    <div class="hm-empty">
-      <div class="hm-empty__icon" aria-hidden="true">🤝</div>
-      <h3>No connections yet</h3>
-      <p class="hm-text-muted" style="max-width:360px;margin:0 auto var(--hm-space-4);">
-        Browse centre mates and send a connection request.
-        Phone numbers reveal only after both of you accept.
-      </p>
-      <a href="/dashboard.html" class="hm-btn hm-btn--primary">Find centre mates</a>
-    </div>`;
-}
-
 function renderError(root, msg) {
   root.innerHTML = `
     <div class="hm-empty">
       <div class="hm-empty__icon" aria-hidden="true">⚠️</div>
       <h3>Something went wrong</h3>
       <p class="hm-text-muted">${esc(msg)}</p>
-      <button type="button" class="hm-btn hm-btn--ghost" onclick="location.reload()">
-        Try again
-      </button>
+      <button type="button" class="hm-btn hm-btn--ghost" onclick="location.reload()">Try again</button>
     </div>`;
 }
 
-function renderConnections(root, otherIds, byId) {
-  const cards = otherIds
-    .map(id => {
-      const user = byId[id];
-      return user ? buildCard(user) : '';
-    })
-    .filter(Boolean)
-    .join('');
-
-  root.innerHTML = `<div class="hm-grid-cards">${cards}</div>`;
+function renderSection({ title, icon, count, empty, cards }) {
+  return `
+    <section class="hm-conn-section">
+      <header class="hm-conn-section__header">
+        <h2 class="hm-conn-section__title">
+          <span aria-hidden="true">${icon}</span> ${esc(title)}
+          <span class="hm-conn-section__count">${count}</span>
+        </h2>
+      </header>
+      ${cards.length === 0
+        ? `<p class="hm-conn-section__empty hm-text-muted">${esc(empty)}</p>`
+        : `<div class="hm-grid-cards">${cards.filter(Boolean).join('')}</div>`}
+    </section>`;
 }
 
-// ─── Card builder ─────────────────────────────────────────────────────────────
+// ─── Card builders ─────────────────────────────────────────────────────────
+
+function basicHeader(user) {
+  const name     = user.full_name || 'Unknown';
+  const examLoc  = [user.exam_centre_district, user.exam_centre_state].filter(Boolean).join(', ');
+  const location = examLoc || [user.district, user.state].filter(Boolean).join(', ') || '—';
+  const color    = avatarColor(name);
+  const initials = avatarInitials(name);
+  return `
+    <div class="hm-mate__head">
+      <div class="hm-avatar"
+           style="background:${color};color:#fff;flex-shrink:0;"
+           aria-hidden="true">${esc(initials)}</div>
+      <div style="min-width:0;">
+        <p class="hm-mate__name">${esc(name)}</p>
+        <p class="hm-mate__sub">${esc(location)}</p>
+      </div>
+    </div>
+    <p class="hm-mate__center">🏛️ ${esc(user.exam_center || '—')}</p>
+    ${travelChips(user.travel_mode, user.stay_plan) ? `<div class="hm-mate__chips">${travelChips(user.travel_mode, user.stay_plan)}</div>` : ''}
+  `;
+}
+
+// 1. RECEIVED — sender sent me a request; Accept or Reject. No phone.
+function receivedCard(user, conn) {
+  if (!user) return '';
+  return `
+    <div class="hm-card hm-mate" data-conn-card-id="${esc(user.id)}">
+      ${basicHeader(user)}
+      <div class="d-flex gap-2"
+           style="margin-top:auto;padding-top:var(--hm-space-3);border-top:1px solid var(--hm-border);">
+        <button class="hm-btn hm-btn--primary hm-btn--sm" style="flex:1;"
+          data-conn-action="accept" data-user-id="${esc(user.id)}" data-conn-id="${esc(conn.id)}">
+          Accept
+        </button>
+        <button class="hm-btn hm-btn--ghost hm-btn--sm" style="flex:1;"
+          data-conn-action="decline" data-user-id="${esc(user.id)}" data-conn-id="${esc(conn.id)}">
+          Reject
+        </button>
+      </div>
+    </div>`;
+}
+
+// 2. SENT — I sent a request, waiting. Pending badge + Cancel. No phone.
+function sentCard(user, conn) {
+  if (!user) return '';
+  return `
+    <div class="hm-card hm-mate" data-conn-card-id="${esc(user.id)}">
+      ${basicHeader(user)}
+      <div class="d-flex gap-2 align-items-center"
+           style="margin-top:auto;padding-top:var(--hm-space-3);border-top:1px solid var(--hm-border);">
+        <span class="hm-badge hm-badge--info"
+              style="font-size:11px;flex:1;text-align:center;padding:6px 8px;">⌛ Pending</span>
+        <button class="hm-btn hm-btn--ghost hm-btn--sm"
+          data-conn-action="withdraw" data-user-id="${esc(user.id)}" data-conn-id="${esc(conn.id)}">
+          Cancel
+        </button>
+      </div>
+    </div>`;
+}
+
+// 3. CONNECTED — mutual accept. Full info + phone reveal + Block.
+function connectedCard(user, conn) {
+  if (!user) return '';
+  const name        = user.full_name   || 'Unknown';
+  const phone       = user.phone       || '';
+  const phonePretty = phone ? formatPhonePretty(phone) : '—';
+  const digits      = phone.replace(/\D/g, '');
+  const waHref      = digits ? `https://wa.me/${digits}` : '';
+  const telHref     = phone  ? `tel:${phone}` : '';
+  const bio         = bioSnippet(user.bio);
+  const connectedOn = formatConnectedDate(conn.updated_at || conn.created_at);
+
+  return `
+    <div class="hm-card hm-mate" data-conn-card-id="${esc(user.id)}">
+      ${basicHeader(user)}
+      ${bio ? `<p class="hm-mate__bio">${esc(bio)}</p>` : ''}
+
+      <!-- Revealed contact -->
+      <div class="hm-contact-revealed"
+           style="margin-top:auto;padding-top:var(--hm-space-3);border-top:1px solid var(--hm-border);">
+        <p class="hm-contact-revealed__number">${esc(phonePretty)}</p>
+        <div class="hm-contact-revealed__links">
+          ${waHref  ? `<a href="${esc(waHref)}" target="_blank" rel="noopener noreferrer"
+                          class="hm-btn hm-btn--soft hm-btn--sm">💬 WhatsApp</a>` : ''}
+          ${telHref ? `<a href="${esc(telHref)}"
+                          class="hm-btn hm-btn--ghost hm-btn--sm">📞 Call</a>` : ''}
+        </div>
+        ${connectedOn ? `<p class="hm-text-subtle" style="font-size:var(--hm-text-xs);margin:8px 0 0;">✓ ${esc(connectedOn)}</p>` : ''}
+      </div>
+
+      <!-- Block action -->
+      <div style="margin-top:var(--hm-space-2);text-align:right;">
+        <button class="hm-modal__block-btn" type="button"
+                data-conn-action="block" data-user-id="${esc(user.id)}"
+                aria-label="Block ${esc(name)}">🚫 Block user</button>
+      </div>
+    </div>`;
+}
+
+// ─── Small helpers ─────────────────────────────────────────────────────────
 
 const AVATAR_COLORS = [
   '#7C3AED', '#2563EB', '#059669', '#D97706',
@@ -139,10 +289,8 @@ function avatarInitials(name) {
   return safe.split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase();
 }
 
-// ─── Enrichment helpers ───────────────────────────────────────────────────────
-
 const TRAVEL_LABEL = {
-  'By train':   '🚆 Train',
+  'By train':   '🚂 Train',
   'By flight':  '✈️ Flight',
   'By bus':     '🚌 Bus',
   'Self-drive': '🚗 Self-drive',
@@ -152,7 +300,7 @@ const STAY_LABEL = {
   'Need accommodation':     '🏨 Needs stay',
   'Have accommodation':     '🏠 Has stay',
   'Looking for room share': '🛏️ Room share',
-  'Other':                  '📦 Other',
+  'Other':                  '🏡 Other',
 };
 
 function travelChips(travelMode, stayPlan) {
@@ -170,57 +318,10 @@ function bioSnippet(bio, maxLen = 60) {
   return s.length > maxLen ? s.slice(0, maxLen - 1) + '…' : s;
 }
 
-// ─── Card builder ─────────────────────────────────────────────────────────────
-
-function buildCard(user) {
-  const name        = user.full_name   || 'Unknown';
-  const examLoc     = [user.exam_centre_district, user.exam_centre_state].filter(Boolean).join(', ');
-  const location    = examLoc || [user.district, user.state].filter(Boolean).join(', ') || '—';
-  const centre      = user.exam_center || '—';
-  const phone       = user.phone       || '';
-  const phonePretty = phone ? formatPhonePretty(phone) : '—';
-  const digits      = phone.replace(/\D/g, '');
-  const waHref      = digits ? `https://wa.me/${digits}` : '';
-  const telHref     = phone  ? `tel:${phone}` : '';
-  const color       = avatarColor(name);
-  const initials    = avatarInitials(name);
-  const bio         = bioSnippet(user.bio);
-  const chips       = travelChips(user.travel_mode, user.stay_plan);
-
-  return `
-    <div class="hm-card hm-mate">
-      <!-- Identity -->
-      <div class="hm-mate__head">
-        <div class="hm-avatar"
-             style="background:${color};color:#fff;flex-shrink:0;"
-             aria-hidden="true">${esc(initials)}</div>
-        <div style="min-width:0;">
-          <p class="hm-mate__name">${esc(name)}</p>
-          <p class="hm-mate__sub">${esc(location)}</p>
-        </div>
-      </div>
-
-      <!-- Exam centre -->
-      <p class="hm-mate__center">🏛️ ${esc(centre)}</p>
-
-      <!-- Social context: bio + travel/stay chips -->
-      ${bio   ? `<p class="hm-mate__bio">${esc(bio)}</p>` : ''}
-      ${chips ? `<div class="hm-mate__chips">${chips}</div>` : ''}
-
-      <!-- Revealed contact: full phone + CTAs -->
-      <div class="hm-contact-revealed" style="margin-top:auto;padding-top:var(--hm-space-3);border-top:1px solid var(--hm-border);">
-        <p class="hm-contact-revealed__number">${esc(phonePretty)}</p>
-        <div class="hm-contact-revealed__links">
-          ${waHref  ? `<a href="${esc(waHref)}" target="_blank" rel="noopener noreferrer"
-                          class="hm-btn hm-btn--soft hm-btn--sm">💬 WhatsApp</a>` : ''}
-          ${telHref ? `<a href="${esc(telHref)}"
-                          class="hm-btn hm-btn--ghost hm-btn--sm">📞 Call</a>` : ''}
-        </div>
-      </div>
-    </div>`;
+function formatConnectedDate(iso) {
+  if (!iso) return '';
+  return 'Connected on ' + new Date(iso).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
 }
-
-// ─── Utility ──────────────────────────────────────────────────────────────────
 
 function esc(str) {
   return String(str ?? '').replace(

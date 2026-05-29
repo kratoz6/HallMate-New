@@ -4,7 +4,10 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#FF6B35" />
-  <title>Set up your profile — HallMate</title>
+  <title>Set up your profile — Zenter</title>
+  <meta name="description" content="Complete your Zenter profile to start matching with exam centre mates." />
+  <meta name="robots" content="noindex, nofollow" />
+  <link rel="canonical" href="https://zenter.in/onboarding.html" />
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -28,12 +31,13 @@
         <!-- Progress -->
         <div class="hm-step-meta">
           <span>Set up profile</span>
-          <span><span id="hm-step-current">1</span> / 3</span>
+          <span><span id="hm-step-current">1</span> / 4</span>
         </div>
         <div class="hm-steps" aria-label="Onboarding progress">
           <span class="hm-steps__dot is-active" data-step="1"></span>
           <span class="hm-steps__dot" data-step="2"></span>
           <span class="hm-steps__dot" data-step="3"></span>
+          <span class="hm-steps__dot" data-step="4"></span>
         </div>
 
         <!-- STEP 1 — Name & gender -->
@@ -46,6 +50,7 @@
                 <div class="hm-field">
                   <label class="hm-label" for="hm-name">Full name <span class="text-danger">*</span></label>
                   <input class="hm-input" id="hm-name" type="text" autocomplete="name" placeholder="As it appears on your hall ticket" required />
+                  <span class="hm-help">Name as mentioned in the admit card</span>
                   <p class="text-danger small mt-1" id="hm-err-name" hidden></p>
                 </div>
               </div>
@@ -54,9 +59,9 @@
                   <label class="hm-label" for="hm-gender">Gender <span class="text-danger">*</span></label>
                   <select class="hm-select" id="hm-gender" required>
                     <option value="">Select…</option>
-                    <option value="Female">Female</option>
                     <option value="Male">Male</option>
-                    <option value="Prefer not to say">Prefer not to say</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
                   </select>
                   <p class="text-danger small mt-1" id="hm-err-gender" hidden></p>
                 </div>
@@ -100,13 +105,27 @@
           </form>
         </section>
 
-        <!-- STEP 3 — Exam centre -->
+        <!-- STEP 3 — Exam details -->
         <section data-step-panel="3" hidden>
           <h1 class="hm-auth__title">Your exam centre</h1>
           <p class="hm-auth__subtitle">We use this to match you with students at the same centre.</p>
           <form id="hm-form-step3" novalidate>
-            <!-- Exam centre location — drives matching -->
             <div class="row g-3">
+              <!-- Row 1: Exam type (required) · Exam centre state (required) -->
+              <div class="col-sm-6">
+                <div class="hm-field">
+                  <label class="hm-label" for="hm-exam-type">Exam type <span class="text-danger">*</span></label>
+                  <select class="hm-select" id="hm-exam-type" required>
+                    <option value="">Select exam…</option>
+                    <option value="NEET UG">NEET UG</option>
+                    <option value="NEET PG">NEET PG</option>
+                    <option value="INICET">INICET</option>
+                    <option value="NEET MDS">NEET MDS</option>
+                    <option value="NEET SS">NEET SS</option>
+                  </select>
+                  <p class="text-danger small mt-1" id="hm-err-exam-type" hidden></p>
+                </div>
+              </div>
               <div class="col-sm-6">
                 <div class="hm-field">
                   <label class="hm-label" for="hm-exam-state">Exam centre state <span class="text-danger">*</span></label>
@@ -116,6 +135,7 @@
                   <p class="text-danger small mt-1" id="hm-err-exam-state" hidden></p>
                 </div>
               </div>
+              <!-- Row 2: Exam centre district (required) · Exam centre name (optional) -->
               <div class="col-sm-6">
                 <div class="hm-field">
                   <label class="hm-label" for="hm-exam-district">Exam centre district <span class="text-danger">*</span></label>
@@ -125,24 +145,32 @@
                   <p class="text-danger small mt-1" id="hm-err-exam-district" hidden></p>
                 </div>
               </div>
-              <div class="col-12">
+              <div class="col-sm-6">
                 <div class="hm-field">
-                  <label class="hm-label" for="hm-exam-center">Exam centre name <span class="text-danger">*</span></label>
-                  <input class="hm-input" id="hm-exam-center" type="text" placeholder="e.g. Pearson VUE — Andheri East, Mumbai" required />
-                  <span class="hm-help">Enter the centre name exactly as shown on your admit card.</span>
-                  <p class="text-danger small mt-1" id="hm-err-exam-center" hidden></p>
+                  <label class="hm-label" for="hm-exam-center">Exam centre name <span class="hm-text-subtle">(optional)</span></label>
+                  <input class="hm-input" id="hm-exam-center" type="text" placeholder="Enter exam centre name (optional)" />
                 </div>
               </div>
             </div>
+            <div class="d-flex justify-content-between mt-4">
+              <button class="hm-btn hm-btn--ghost" type="button" data-go-step="2">← Back</button>
+              <button class="hm-btn hm-btn--primary" type="submit">Continue →</button>
+            </div>
+          </form>
+        </section>
 
-            <!-- Travel & Stay (optional) -->
-            <div class="row g-3 mt-1">
+        <!-- STEP 4 — Travel & stay -->
+        <section data-step-panel="4" hidden>
+          <h1 class="hm-auth__title">Travel &amp; stay</h1>
+          <p class="hm-auth__subtitle">Help centre mates coordinate with you on exam day. You can update these later.</p>
+          <form id="hm-form-step4" novalidate>
+            <div class="row g-3">
               <div class="col-sm-6">
                 <div class="hm-field">
                   <label class="hm-label" for="hm-travel-mode">Travel mode</label>
                   <select class="hm-select" id="hm-travel-mode">
                     <option value="">Select travel mode</option>
-                    <option value="By train">🚆 Train</option>
+                    <option value="By train">🚂 Train</option>
                     <option value="By flight">✈️ Flight</option>
                     <option value="By bus">🚌 Bus</option>
                     <option value="Self-drive">🚗 Self-drive / Car</option>
@@ -164,10 +192,10 @@
               </div>
             </div>
 
-            <p id="hm-save-error" class="text-danger small" hidden></p>
+            <p id="hm-save-error" class="text-danger small mt-3" hidden></p>
 
             <div class="d-flex justify-content-between mt-4">
-              <button class="hm-btn hm-btn--ghost" type="button" data-go-step="2">← Back</button>
+              <button class="hm-btn hm-btn--ghost" type="button" data-go-step="3">← Back</button>
               <button class="hm-btn hm-btn--primary" type="submit" id="hm-finish-btn">Finish &amp; find mates</button>
             </div>
           </form>
