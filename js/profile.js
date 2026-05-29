@@ -207,7 +207,14 @@ async function saveAll(saveBtn) {
     for (const f of sec.fields) {
       const dd  = document.getElementById(f.ddId);
       const inp = dd?.querySelector('[data-field-key]');
-      if (!inp) continue;
+      if (!inp) {
+        // Config/DOM mismatch — a SECTIONS field has no matching <dd> in
+        // the markup. Surface it loudly rather than silently dropping the
+        // value from the save payload.
+        console.error(`[profile] Missing editable input for field "${f.key}" (expected <dd id="${f.ddId}">)`);
+        valid = false;
+        continue;
+      }
       const v = inp.value.trim() || null;
       if (f.required && !v) {
         inp.classList.add('hm-input--invalid');
@@ -328,70 +335,6 @@ function buildInput(field, currentVal) {
   }
 }
 
-// ─── Save ─────────────────────────────────────────────────────────────────────
-
-async function saveSection(sectionKey, saveBtn) {
-  const sec     = SECTIONS[sectionKey];
-  const article = document.getElementById(sec.sectionId);
-
-  // Remove any previous inline error
-  article.querySelector('.hm-profile-save-error')?.remove();
-
-  // Collect + validate field values
-  const updates = {};
-  let valid = true;
-
-  for (const f of sec.fields) {
-    const dd  = document.getElementById(f.ddId);
-    const inp = dd?.querySelector('[data-field-key]');
-    if (!inp) continue;
-
-    const val = inp.value.trim() || null;
-    if (f.required && !val) {
-      inp.classList.add('hm-input--invalid');
-      valid = false;
-    } else {
-      inp.classList.remove('hm-input--invalid');
-      updates[f.key] = val;
-    }
-  }
-  if (!valid) return;
-
-  setButtonBusy(saveBtn, true, 'Saving…');
-
-  const { error } = await upsertUser({
-    phone: profilePhone,
-    profile_completed: true,
-    ...updates,
-  });
-
-  setButtonBusy(saveBtn, false);
-
-  if (error) {
-    console.error('[profile] save error', error);
-    const errEl = document.createElement('p');
-    errEl.className = 'hm-profile-save-error';
-    errEl.style.cssText =
-      'color:var(--hm-danger);font-size:var(--hm-text-xs);' +
-      'margin-top:var(--hm-space-3);grid-column:1/-1;';
-    errEl.textContent = error.message || 'Save failed. Please try again.';
-    article.querySelector('.hm-kv')?.appendChild(errEl);
-    return;
-  }
-
-  // Optimistic merge into in-memory profileData
-  Object.assign(profileData, updates);
-
-  // Keep identity card in sync if name changed
-  if ('full_name' in updates) {
-    const name = trimOrNull(profileData.full_name);
-    setText('hm-profile-name', name || 'Your name');
-    setAvatar(name);
-    cacheInitials(name);
-  }
-
-  exitEditMode(sectionKey);
-}
 
 // ─── Exit edit mode ───────────────────────────────────────────────────────────
 
