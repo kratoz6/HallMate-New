@@ -892,11 +892,11 @@ async function doBlock(userId, reason) {
 
 // Maps stored values → emoji icon + short label (split for badge-card layout).
 const TRAVEL_ICON = {
-  'By train':   '🚆',
+  'By train':   '🚂',
   'By flight':  '✈️',
   'By bus':     '🚌',
   'Self-drive': '🚗',
-  'Other':      '🚕',
+  'Other':      '🚐',
 };
 const TRAVEL_LABEL = {
   'By train':   'Train',
@@ -909,7 +909,7 @@ const STAY_ICON = {
   'Need accommodation':     '🏨',
   'Have accommodation':     '🏠',
   'Looking for room share': '🛏️',
-  'Other':                  '📦',
+  'Other':                  '🏡',
 };
 const STAY_LABEL = {
   'Need accommodation':     'Needs stay',

@@ -290,7 +290,7 @@ function avatarInitials(name) {
 }
 
 const TRAVEL_LABEL = {
-  'By train':   '🚆 Train',
+  'By train':   '🚂 Train',
   'By flight':  '✈️ Flight',
   'By bus':     '🚌 Bus',
   'Self-drive': '🚗 Self-drive',
@@ -300,7 +300,7 @@ const STAY_LABEL = {
   'Need accommodation':     '🏨 Needs stay',
   'Have accommodation':     '🏠 Has stay',
   'Looking for room share': '🛏️ Room share',
-  'Other':                  '📦 Other',
+  'Other':                  '🏡 Other',
 };
 
 function travelChips(travelMode, stayPlan) {

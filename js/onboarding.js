@@ -63,9 +63,11 @@ async function init() {
     // exam_type is no longer collected during onboarding (kept in DB for
     // backward compatibility with existing users).
     if (!validate([
+      { id: 'hm-exam-type',     errId: 'hm-err-exam-type',     msg: 'Please select your exam type.' },
       { id: 'hm-exam-state',    errId: 'hm-err-exam-state',    msg: 'Select your exam centre state.' },
       { id: 'hm-exam-district', errId: 'hm-err-exam-district', msg: 'Select your exam centre district.' },
     ])) return;
+    collected.exam_type            = val('hm-exam-type');
     collected.exam_centre_state    = val('hm-exam-state');
     collected.exam_centre_district = val('hm-exam-district');
     collected.exam_center          = val('hm-exam-center') || null;
@@ -94,6 +96,7 @@ async function saveProfile() {
     gender:                collected.gender,
     state:                 collected.state,
     district:              collected.district,
+    exam_type:             collected.exam_type,
     exam_centre_state:     collected.exam_centre_state,
     exam_centre_district:  collected.exam_centre_district,
     exam_center:           collected.exam_center,

@@ -19,7 +19,7 @@ let profilePhone = '';   // Firebase E.164 phone number
 let profileData  = {};   // Latest Supabase row; updated optimistically on save
 
 // ─── Option lists ─────────────────────────────────────────────────────────────
-const GENDER_OPTS = ['Female', 'Male', 'Prefer not to say'];
+const GENDER_OPTS = ['Male', 'Female', 'Other'];
 
 // STATES imported from location-data.js — single source of truth for all 36 entries.
 

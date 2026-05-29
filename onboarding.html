@@ -50,6 +50,7 @@
                 <div class="hm-field">
                   <label class="hm-label" for="hm-name">Full name <span class="text-danger">*</span></label>
                   <input class="hm-input" id="hm-name" type="text" autocomplete="name" placeholder="As it appears on your hall ticket" required />
+                  <span class="hm-help">Name as mentioned in the admit card</span>
                   <p class="text-danger small mt-1" id="hm-err-name" hidden></p>
                 </div>
               </div>
@@ -58,9 +59,9 @@
                   <label class="hm-label" for="hm-gender">Gender <span class="text-danger">*</span></label>
                   <select class="hm-select" id="hm-gender" required>
                     <option value="">Select…</option>
-                    <option value="Female">Female</option>
                     <option value="Male">Male</option>
-                    <option value="Prefer not to say">Prefer not to say</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
                   </select>
                   <p class="text-danger small mt-1" id="hm-err-gender" hidden></p>
                 </div>
@@ -110,7 +111,21 @@
           <p class="hm-auth__subtitle">We use this to match you with students at the same centre.</p>
           <form id="hm-form-step3" novalidate>
             <div class="row g-3">
-              <!-- Row 1: Exam centre state · Exam centre district -->
+              <!-- Row 1: Exam type (required) · Exam centre state (required) -->
+              <div class="col-sm-6">
+                <div class="hm-field">
+                  <label class="hm-label" for="hm-exam-type">Exam type <span class="text-danger">*</span></label>
+                  <select class="hm-select" id="hm-exam-type" required>
+                    <option value="">Select exam…</option>
+                    <option value="NEET UG">NEET UG</option>
+                    <option value="NEET PG">NEET PG</option>
+                    <option value="INICET">INICET</option>
+                    <option value="NEET MDS">NEET MDS</option>
+                    <option value="NEET SS">NEET SS</option>
+                  </select>
+                  <p class="text-danger small mt-1" id="hm-err-exam-type" hidden></p>
+                </div>
+              </div>
               <div class="col-sm-6">
                 <div class="hm-field">
                   <label class="hm-label" for="hm-exam-state">Exam centre state <span class="text-danger">*</span></label>
@@ -120,6 +135,7 @@
                   <p class="text-danger small mt-1" id="hm-err-exam-state" hidden></p>
                 </div>
               </div>
+              <!-- Row 2: Exam centre district (required) · Exam centre name (optional) -->
               <div class="col-sm-6">
                 <div class="hm-field">
                   <label class="hm-label" for="hm-exam-district">Exam centre district <span class="text-danger">*</span></label>
@@ -129,8 +145,7 @@
                   <p class="text-danger small mt-1" id="hm-err-exam-district" hidden></p>
                 </div>
               </div>
-              <!-- Row 2: Exam centre name (optional) -->
-              <div class="col-12">
+              <div class="col-sm-6">
                 <div class="hm-field">
                   <label class="hm-label" for="hm-exam-center">Exam centre name <span class="hm-text-subtle">(optional)</span></label>
                   <input class="hm-input" id="hm-exam-center" type="text" placeholder="Enter exam centre name (optional)" />
@@ -155,7 +170,7 @@
                   <label class="hm-label" for="hm-travel-mode">Travel mode</label>
                   <select class="hm-select" id="hm-travel-mode">
                     <option value="">Select travel mode</option>
-                    <option value="By train">🚆 Train</option>
+                    <option value="By train">🚂 Train</option>
                     <option value="By flight">✈️ Flight</option>
                     <option value="By bus">🚌 Bus</option>
                     <option value="Self-drive">🚗 Self-drive / Car</option>
