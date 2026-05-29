@@ -150,10 +150,8 @@ function renderRequestsLink(count) {
     <a href="/dashboard.html#requests" class="hm-conn-requests-link"
        aria-label="View ${count} received connection request${count !== 1 ? 's' : ''}">
       <span class="hm-conn-requests-link__label">
-        🤝 Received Requests
-        ${count > 0
-          ? `<span class="hm-nav-badge" style="margin-left:8px;">${count}</span>`
-          : '<span style="margin-left:6px;font-size:var(--hm-text-xs);color:var(--hm-text-muted);font-weight:400;">None</span>'}
+        🤝 Pending Requests
+        ${count > 0 ? `<span class="hm-nav-badge" style="margin-left:8px;">${count}</span>` : ''}
       </span>
       <span class="hm-conn-requests-link__arrow">→</span>
     </a>`;
